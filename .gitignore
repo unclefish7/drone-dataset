@@ -1,0 +1,5 @@
+__pycache__/
+
+_depth_out/
+_lidar_out/
+_rgb_out/

@@ -7,6 +7,7 @@ import time
 import carla
 import numpy as np
 from numpy import random
+from uav_utils import spawn_uav_with_sensors
 
 vehicles_list = []
 sensor_list = []
@@ -37,102 +38,6 @@ world.apply_settings(settings)
 def get_actor_blueprints(world, filter):
     return world.get_blueprint_library().filter(filter)
 
-def process_image(image, direction, sensor_type):
-    # Process and save image data with direction and sensor type in the filename
-    image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_rgb_out\rgb_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
-
-def process_depth_image(image, direction, sensor_type):
-    # Process and save depth image data with direction and sensor type in the filename
-    image.convert(carla.ColorConverter.LogarithmicDepth)
-    image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
-
-    # lidar_data = depth_to_point_cloud(image)
-    # np.savetxt(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_lidar_out\lidar_%s_%s_%06d.txt' % (direction, sensor_type, image.frame), lidar_data)
-
-def depth_to_point_cloud(depth_image):
-    # Convert depth image to point cloud
-    # Get camera intrinsic parameters
-    image_size_x = depth_image.width
-    image_size_y = depth_image.height
-    fov = float(depth_image.fov)
-    focal_length = image_size_x / (2.0 * np.tan(fov * np.pi / 360.0))
-    cx = image_size_x / 2.0
-    cy = image_size_y / 2.0
-
-    depth_data = np.frombuffer(depth_image.raw_data, dtype=np.dtype("uint8"))
-    depth_data = depth_data.reshape((depth_image.height, depth_image.width, 4))
-    depth_data = depth_data[:, :, :3]
-
-    points = []
-    for v in range(image_size_y):
-        for u in range(image_size_x):
-            z = depth_data[v, u, 0] / 255.0 * 1000.0
-            if z > 0.1:  # Ignore points that are too close
-                x = (u - cx) * z / focal_length
-                y = (v - cy) * z / focal_length
-                points.append([x, y, z])
-
-    return np.array(points)
-
-def spawn_uav(image_size_x, image_size_y, fov, capture_intervals, pitch_degree):
-    directions = ["North", "East", "South", "West"]
-    yaw_angles = [0, 90, 180, 270]
-
-    static_blueprint = world.get_blueprint_library().find('static.prop.box01')
-    spawn_point = carla.Transform(carla.Location(x=0, y=0, z=50), carla.Rotation(yaw=0))
-    static_actor = world.spawn_actor(static_blueprint, spawn_point)
-    static_actor_list.append(static_actor)
-
-    # 创建垂直向下的传感器
-    # 创建RGB传感器并设置固定位置
-    rgb_blueprint = world.get_blueprint_library().find('sensor.camera.rgb')
-    rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
-    rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
-    rgb_blueprint.set_attribute('fov', str(fov))
-    rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-    rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-    rgb_sensor = world.spawn_actor(rgb_blueprint, rgb_transform, static_actor)
-    rgb_sensor.listen(lambda data: process_image(data, "down", "rgb"))
-    sensor_list.append(rgb_sensor)
-
-    # 创建深度传感器并设置固定位置
-    depth_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
-    depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-    depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-    depth_blueprint.set_attribute('fov', str(fov))
-    depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-    depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-    depth_sensor = world.spawn_actor(depth_blueprint, depth_transform, static_actor)
-    depth_sensor.listen(lambda data: process_depth_image(data, "down", "depth"))
-    sensor_list.append(depth_sensor)
-    
-    # 创建四个不同方向的传感器
-    for direction, yaw in zip(directions, yaw_angles):
-        # 创建RGB传感器并设置固定位置
-        rgb_blueprint = world.get_blueprint_library().find('sensor.camera.rgb')
-        rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
-        rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
-        rgb_blueprint.set_attribute('fov', str(fov))
-        rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
-        rgb_sensor = world.spawn_actor(rgb_blueprint, rgb_transform, static_actor)
-        rgb_sensor.listen(lambda data, dir=direction: process_image(data, dir, "rgb"))
-        sensor_list.append(rgb_sensor)
-
-        # 创建深度传感器并设置固定位置
-        depth_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
-        depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-        depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-        depth_blueprint.set_attribute('fov', str(fov))
-        depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
-        depth_sensor = world.spawn_actor(depth_blueprint, depth_transform, static_actor)
-        depth_sensor.listen(lambda data, dir=direction: process_depth_image(data, dir, "depth"))
-        sensor_list.append(depth_sensor)
 
 # 再深入了解一下转换的原理
 
@@ -219,74 +124,8 @@ def main():
 #################################################################################
         # 以下为传感器设置
         # 相关参数设置
-        image_size_x = 800
-        image_size_y = 450
-        pitch_degree = -45
-        fov = 90
-        capture_intervals = 5.0
-
-        # for i in range(5):
-        #     spawn_uav(image_size_x=image_size_x, image_size_y=image_size_y, fov=fov, capture_intervals=capture_intervals, pitch_degree=pitch_degree)
-
-
-        directions = ["North", "East", "South", "West"]
-        yaw_angles = [0, 90, 180, 270]
-
-        static_blueprint = world.get_blueprint_library().find('static.prop.box01')
-        spawn_point = carla.Transform(carla.Location(x=0, y=0, z=50), carla.Rotation(yaw=0))
-        static_actor = world.spawn_actor(static_blueprint, spawn_point)
-        static_actor_list.append(static_actor)
-
-        # 创建垂直向下的传感器
-        # 创建RGB传感器并设置固定位置
-        rgb_blueprint = world.get_blueprint_library().find('sensor.camera.rgb')
-        rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
-        rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
-        rgb_blueprint.set_attribute('fov', str(fov))
-        rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-        rgb_sensor = world.spawn_actor(rgb_blueprint, rgb_transform, static_actor)
-        rgb_sensor.listen(lambda data: process_image(data, "down", "rgb"))
-        sensor_list.append(rgb_sensor)
-
-        # 创建深度传感器并设置固定位置
-        depth_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
-        depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-        depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-        depth_blueprint.set_attribute('fov', str(fov))
-        depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-        depth_sensor = world.spawn_actor(depth_blueprint, depth_transform, static_actor)
-        depth_sensor.listen(lambda data: process_depth_image(data, "down", "depth"))
-        sensor_list.append(depth_sensor)
-        
-        # 创建四个不同方向的传感器
-        for direction, yaw in zip(directions, yaw_angles):
-            # 创建RGB传感器并设置固定位置
-            rgb_blueprint = world.get_blueprint_library().find('sensor.camera.rgb')
-            rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
-            rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
-            rgb_blueprint.set_attribute('fov', str(fov))
-            rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-            rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
-            rgb_sensor = world.spawn_actor(rgb_blueprint, rgb_transform, static_actor)
-            rgb_sensor.listen(lambda data, dir=direction: process_image(data, dir, "rgb"))
-            sensor_list.append(rgb_sensor)
-
-            # 创建深度传感器并设置固定位置
-            depth_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
-            depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-            depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-            depth_blueprint.set_attribute('fov', str(fov))
-            depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-            depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
-            depth_sensor = world.spawn_actor(depth_blueprint, depth_transform, static_actor)
-            depth_sensor.listen(lambda data, dir=direction: process_depth_image(data, dir, "depth"))
-            sensor_list.append(depth_sensor)
+        location1 = carla.Location(x=0, y=0, z=50)
+        spawn_uav_with_sensors(world, location1, 0, static_actor_list, sensor_list)
 
         # 参考co-perception学习一下传感器相关设置
         # 传感器位深、分辨率、视野fov、如何将深度图转换为点云
