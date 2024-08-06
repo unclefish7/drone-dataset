@@ -7,11 +7,9 @@ import time
 import carla
 import numpy as np
 from numpy import random
-from uav_utils import spawn_uav_with_sensors
+from uav_utils import UAV
 
 vehicles_list = []
-sensor_list = []
-static_actor_list = []
 
 # 设置CARLA客户端连接参数
 host = '127.0.0.1'
@@ -24,13 +22,20 @@ client.set_timeout(10.0)
 
 world = client.get_world()
 
+# 更改地图
+world = client.load_world_if_different('Town03')
+if not world:
+    world = client.get_world()
+
 traffic_manager = client.get_trafficmanager(tm_port)
 
 settings = world.get_settings()
 if synchronous_mode:
     traffic_manager.set_synchronous_mode(True)
     settings.synchronous_mode = True
-    settings.fixed_delta_seconds = 2
+    settings.fixed_delta_seconds = 0.5
+    # settings.max_substep_delta_time = 0.5
+    # settings.max_substeps = 10
 world.apply_settings(settings)
 
 # 以上为基础设置
@@ -124,8 +129,10 @@ def main():
 #################################################################################
         # 以下为传感器设置
         # 相关参数设置
+        uavs = []
+
         location1 = carla.Location(x=0, y=0, z=50)
-        spawn_uav_with_sensors(world, location1, 0, static_actor_list, sensor_list)
+        uavs.append(UAV(world, location1, 0))
 
         # 参考co-perception学习一下传感器相关设置
         # 传感器位深、分辨率、视野fov、如何将深度图转换为点云
@@ -152,11 +159,15 @@ def main():
             settings = world.get_settings()
             settings.synchronous_mode = False
             settings.fixed_delta_seconds = None
+            # settings.max_substep_delta_time = None
+            # settings.max_substeps = None
             world.apply_settings(settings)
 
         client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])
-        client.apply_batch([carla.command.DestroyActor(x) for x in sensor_list])
-        client.apply_batch([carla.command.DestroyActor(x) for x in static_actor_list])
+
+        for uav in uavs:
+            uav.destroy()
+
         time.sleep(0.5)
 
 if __name__ == '__main__':
