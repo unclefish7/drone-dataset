@@ -1,5 +1,25 @@
 import carla
 import numpy as np
+import open3d as o3d
+from PIL import Image
+
+
+def depth_to_point_cloud(depth_map):
+    # h, w = depth_map.shape
+    fx = 2892.33
+    fy = 2883.18
+    cx = 823.205
+    cy = 619.071
+
+    h, w = 450, 800
+    points = []
+    for v in range(h):
+        for u in range(w):
+            Z = depth_map[v, u]
+            X = (u - cx) * Z / fx
+            Y = (v - cy) * Z / fy
+            points.append([X, Y, Z])
+    return np.array(points)
 
 class UAV:
     def __init__(self, world, location, yaw_angle):
@@ -45,6 +65,7 @@ class UAV:
         depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
         depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
+
         self.sensors.append(depth_sensor)
 
         # 创建四个不同方向的传感器
@@ -74,9 +95,23 @@ class UAV:
     def process_image(self, image, direction, sensor_type):
         image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_rgb_out\rgb_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
 
+    # def process_depth_image(self, image, direction, sensor_type):
+    #     image.convert(carla.ColorConverter.LogarithmicDepth)
+    #     image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
+
     def process_depth_image(self, image, direction, sensor_type):
+        # print(image)
+        # print("\n")
         image.convert(carla.ColorConverter.LogarithmicDepth)
         image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
+        depth_map=Image.open(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame)).convert("L")
+        depth_map=np.array(depth_map)
+        points = depth_to_point_cloud(depth_map)
+        # # print(points)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        o3d.io.write_point_cloud(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_dot_out\dot_%s_%s_%06d.pcd' % (direction, sensor_type, image.frame), pcd)
+        # # image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
 
     def move(self, delta_location):
         new_location = self.static_actor.get_location() + delta_location
@@ -89,3 +124,6 @@ class UAV:
         # 销毁静态演员
         if self.static_actor is not None:
             self.static_actor.destroy()
+
+
+
