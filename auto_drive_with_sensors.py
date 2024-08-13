@@ -30,12 +30,18 @@ if not world:
 traffic_manager = client.get_trafficmanager(tm_port)
 
 settings = world.get_settings()
+
+default_substep = settings.max_substeps
+default_substep_delta_time = settings.max_substep_delta_time
+
+print("default_substep:", default_substep)
+print("default_substep_delta_time:", default_substep_delta_time)
+
 if synchronous_mode:
     traffic_manager.set_synchronous_mode(True)
     settings.synchronous_mode = True
-    settings.fixed_delta_seconds = 0.5
-    # settings.max_substep_delta_time = 0.5
-    # settings.max_substeps = 10
+    settings.fixed_delta_seconds = 0.05
+    settings.max_substeps = 1000
 world.apply_settings(settings)
 
 # 以上为基础设置
@@ -159,8 +165,8 @@ def main():
             settings = world.get_settings()
             settings.synchronous_mode = False
             settings.fixed_delta_seconds = None
-            # settings.max_substep_delta_time = None
-            # settings.max_substeps = None
+            settings.max_substep_delta_time = default_substep_delta_time
+            settings.max_substeps = default_substep
             world.apply_settings(settings)
 
         client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])

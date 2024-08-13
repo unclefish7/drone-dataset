@@ -33,7 +33,7 @@ class UAV:
 
         rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-        rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
+        # rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
         self.sensors.append(rgb_sensor)
 
         depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
@@ -44,7 +44,7 @@ class UAV:
 
         depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-        depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
+        # depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
         self.sensors.append(depth_sensor)
 
         # 创建四个不同方向的传感器
@@ -57,7 +57,7 @@ class UAV:
 
             rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-            rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
+            # rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
             self.sensors.append(rgb_sensor)
 
             depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
@@ -68,7 +68,7 @@ class UAV:
 
             depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=yaw, pitch=pitch_degree))
             depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-            depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
+            # depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
             self.sensors.append(depth_sensor)
 
     def process_image(self, image, direction, sensor_type):
