@@ -26,19 +26,25 @@ class UAV:
         self.yaw_angle = yaw_angle
         self.static_actor = None
         self.sensors = []
+        self.sensors_capture_intervals = 5.0
         self.ticks_per_move = 20  # 默认每20个tick移动一次
         self.tick_counter = 0  # 初始化tick计数器
         self.move_enabled = False  # 移动开关，默认关闭
         self.delta_location = carla.Location(0, 0, 0)  # 默认的位移向量
         self.noise_std = 0  # 随机扰动的标准差
+        self.rgb_sensors_active = [False, False, False, False, True]
+        self.depth_sensors_active = [False, False, False, False, False]
         self.spawn_uav()
 
+        
     def spawn_uav(self):
         image_size_x = 800
         image_size_y = 450
         pitch_degree = -45
         fov = 90
-        capture_intervals = 5.0
+        capture_intervals = self.sensors_capture_intervals # 无人机的移动频率应该和传感器的采集频率一致
+
+
 
         directions = ["North", "East", "South", "West"]
         yaw_angles = [0, 90, 180, 270]
@@ -56,7 +62,8 @@ class UAV:
 
         rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-        rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
+        if (self.rgb_sensors_active[4] == True):
+            rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
         self.sensors.append(rgb_sensor)
 
         depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
@@ -67,7 +74,8 @@ class UAV:
 
         depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-        # depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
+        if (self.depth_sensors_active[4] == True):
+            depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
         self.sensors.append(depth_sensor)
 
         # 创建四个不同方向的传感器
@@ -82,7 +90,8 @@ class UAV:
 
             rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-            # rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
+            if (self.rgb_sensors_active[yaw//90] == True):
+                rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
             self.sensors.append(rgb_sensor)
 
             depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
@@ -93,7 +102,8 @@ class UAV:
 
             depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
             depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-            # depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
+            if (self.depth_sensors_active[yaw//90] == True):
+                depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
             self.sensors.append(depth_sensor)
 
     def process_image(self, image, direction, sensor_type):
@@ -108,6 +118,8 @@ class UAV:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
         o3d.io.write_point_cloud(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_dot_out\dot_%s_%s_%06d.pcd' % (direction, sensor_type, image.frame), pcd)
+
+    # 需要添加移动时的碰撞检测
 
     def move(self):
         """
@@ -140,6 +152,16 @@ class UAV:
                 # 重置tick计数器并移动
                 self.tick_counter = 0
                 self.move()
+    
+    # sensor_num = 0:North 1:East 2:South 3:West 4:Down
+    def set_rgb_sensors_active(self, sensor_num, active=True):
+        self.rgb_sensors_active[sensor_num] = active
+
+    def set_depth_sensors_active(self, sensor_num, active=True):
+        self.depth_sensors_active[sensor_num] = active
+
+    def set_sensors_capture_intervals(self, intervals):
+        self.sensors_capture_intervals = intervals
 
     def enable_movement(self, enabled=True):
         """

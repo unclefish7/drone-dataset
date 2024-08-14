@@ -142,10 +142,9 @@ def main():
         location1 = carla.Location(x=50, y=0, z=50)
         uavs.append(UAV(world, location1, 0))
 
-        delta_location = carla.Location(x=5, y=0, z=0)
-        uavs[0].enable_movement(True)
-        uavs[0].set_delta_location(delta_location)
-
+        # delta_location = carla.Location(x=5, y=0, z=0)
+        # uavs[0].enable_movement(True)
+        # uavs[0].set_delta_location(delta_location)
 
         # location2 = carla.Location(x=50, y=50, z=50)
         # uavs.append(UAV(world, location2, 90))
@@ -156,6 +155,7 @@ def main():
         # location4 = carla.Location(x=0, y=0, z=50)
         # uavs.append(UAV(world, location4, 270))
 
+                
 
         # 参考co-perception学习一下传感器相关设置
         # 传感器位深、分辨率、视野fov、如何将深度图转换为点云
