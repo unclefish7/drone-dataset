@@ -146,14 +146,14 @@ def main():
         # uavs[0].enable_movement(True)
         # uavs[0].set_delta_location(delta_location)
 
-        location2 = carla.Location(x=50, y=50, z=50)
-        uavs.append(UAV(world, location2, uav_id=2, yaw_angle=90))
+        # location2 = carla.Location(x=50, y=50, z=50)
+        # uavs.append(UAV(world, location2, uav_id=2, yaw_angle=90))
 
-        location3 = carla.Location(x=0, y=50, z=50)
-        uavs.append(UAV(world, location3, uav_id=3, yaw_angle=180))
+        # location3 = carla.Location(x=0, y=50, z=50)
+        # uavs.append(UAV(world, location3, uav_id=3, yaw_angle=180))
 
-        location4 = carla.Location(x=0, y=0, z=50)
-        uavs.append(UAV(world, location4, uav_id=4, yaw_angle=270))
+        # location4 = carla.Location(x=0, y=0, z=50)
+        # uavs.append(UAV(world, location4, uav_id=4, yaw_angle=270))
 
                 
 

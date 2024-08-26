@@ -25,6 +25,7 @@ class UAV:
         self.location = location
         self.yaw_angle = yaw_angle
         self.uav_id = uav_id  # 添加UAV的唯一ID
+        self.rootDir = r'C:\Users\uncle\Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo'
         self.static_actor = None
         self.sensors = []
         self.ticks_per_capture = 2  # 每多少tick采集一次数据
@@ -105,11 +106,11 @@ class UAV:
             self.sensors.append(depth_sensor)
 
     def process_image(self, image, direction, sensor_type):
-        file_name = r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_rgb_out\rgb_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
+        file_name = self.rootDir + r'\_rgb_out\rgb_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
         image.save_to_disk(file_name)
 
     def process_depth_image(self, image, direction, sensor_type):
-        file_name = r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
+        file_name = self.rootDir + r'\_depth_out\depth_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
         image.convert(carla.ColorConverter.LogarithmicDepth)
         image.save_to_disk(file_name)
         depth_map = Image.open(file_name).convert("L")
@@ -117,7 +118,7 @@ class UAV:
         points = depth_to_point_cloud(depth_map)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_dot_out\dot_uav%s_%s_%s_%06d.pcd' % (self.uav_id, direction, sensor_type, image.frame)
+        pcd_file_name = self.rootDir + r'\_dot_out\dot_uav%s_%s_%s_%06d.pcd' % (self.uav_id, direction, sensor_type, image.frame)
         o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def move(self):
