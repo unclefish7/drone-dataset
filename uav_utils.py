@@ -2,6 +2,9 @@ import carla
 import numpy as np
 import open3d as o3d
 from PIL import Image
+import yaml
+import os
+
 
 def depth_to_point_cloud(depth_map):
     fx = 2892.33
@@ -23,19 +26,32 @@ class UAV:
     def __init__(self, world, location, uav_id, yaw_angle=0):
         self.world = world
         self.location = location
+
         self.yaw_angle = yaw_angle
         self.uav_id = uav_id  # 添加UAV的唯一ID
-        self.rootDir = r'C:\Users\uncle\Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo'
+        self.rootDir = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo'
+
         self.static_actor = None
         self.sensors = []
-        self.ticks_per_capture = 2  # 每多少tick采集一次数据
+
+        self.sensors_data_counter = 0  # 计数器
+        self.total_sensors = 5  # 假设一共有5个传感器
+        # self.frame_data = {}  # 保存每一帧的数据
+
+        self.world_origin = [0, 0, 0]  # 世界坐标系的原点
+        self.direction_x = [1, 0, 0]  # 世界坐标系的X轴方向向量
+
+        self.ticks_per_capture = 5  # 每多少tick采集一次数据
         self.sensors_capture_intervals = self.ticks_per_capture * world.get_settings().fixed_delta_seconds  # 传感器的采集
         self.tick_counter = 0  # 初始化tick计数器
+
         self.move_enabled = False  # 移动开关，默认关闭
         self.delta_location = carla.Location(0, 0, 0)  # 默认的位移向量
         self.noise_std = 0  # 随机扰动的标准差
-        self.rgb_sensors_active = [False, False, False, False, True]
-        self.depth_sensors_active = [False, False, False, False, False]
+
+        self.rgb_sensors_active = [True, True, True, True, True]
+        # self.rgb_sensors_active = [False, False, False, True, True]
+
         self.spawn_uav()
 
     def spawn_uav(self):
@@ -65,18 +81,6 @@ class UAV:
             rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
         self.sensors.append(rgb_sensor)
 
-        depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
-        depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-        depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-        depth_blueprint.set_attribute('fov', str(fov))
-        depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-        depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-        if self.depth_sensors_active[4]:
-            depth_sensor.listen(lambda data: self.process_depth_image(data, "down", "depth"))
-        self.sensors.append(depth_sensor)
-
         # 创建四个不同方向的传感器
         for direction, yaw in zip(directions, yaw_angles):
             adjusted_yaw = yaw - self.yaw_angle  # 根据无人机的朝向调整传感器的朝向
@@ -93,19 +97,11 @@ class UAV:
                 rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
             self.sensors.append(rgb_sensor)
 
-            depth_blueprint = self.world.get_blueprint_library().find('sensor.camera.depth')
-            depth_blueprint.set_attribute('image_size_x', str(image_size_x))
-            depth_blueprint.set_attribute('image_size_y', str(image_size_y))
-            depth_blueprint.set_attribute('fov', str(fov))
-            depth_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+    def get_intrinsics(self, sensor):
+        if not sensor.is_alive:
+            print(f"Sensor {sensor.id} has been destroyed.")
+            return None
 
-            depth_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
-            depth_sensor = self.world.spawn_actor(depth_blueprint, depth_transform, self.static_actor)
-            if self.depth_sensors_active[yaw // 90]:
-                depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
-            self.sensors.append(depth_sensor)
-
-    def get_intrinsics(sensor):
         fov = float(sensor.attributes['fov'])  # 获取FOV
         image_width = int(sensor.attributes['image_size_x'])  # 图像宽度
         image_height = int(sensor.attributes['image_size_y'])  # 图像高度
@@ -122,7 +118,38 @@ class UAV:
         
         return intrinsics
     
-    def calculate_extrinsics_with_x_direction(sensor, world_origin, direction_x):
+
+    def euler_to_rotation_matrix(self, roll, pitch, yaw):
+        # 将欧拉角转换为弧度
+        roll = np.radians(roll)
+        pitch = np.radians(pitch)
+        yaw = np.radians(yaw)
+
+        # X轴旋转矩阵
+        Rx = np.array([
+            [1, 0, 0],
+            [0, np.cos(roll), -np.sin(roll)],
+            [0, np.sin(roll), np.cos(roll)]
+        ])
+
+        # Y轴旋转矩阵
+        Ry = np.array([
+            [np.cos(pitch), 0, np.sin(pitch)],
+            [0, 1, 0],
+            [-np.sin(pitch), 0, np.cos(pitch)]
+        ])
+
+        # Z轴旋转矩阵
+        Rz = np.array([
+            [np.cos(yaw), -np.sin(yaw), 0],
+            [np.sin(yaw), np.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+
+        # 最终旋转矩阵
+        return np.dot(Rz, np.dot(Ry, Rx))
+
+    def calculate_extrinsics_with_x_direction(self, sensor, world_origin, direction_x):
         """
         计算传感器相对于世界坐标系的外参，通过世界坐标系的原点和X轴方向向量生成旋转矩阵。
         
@@ -131,6 +158,11 @@ class UAV:
         :param direction_x: 世界坐标系的X轴方向向量 [x, y, z]
         :return: 传感器相对于世界坐标系的外参矩阵
         """
+
+        if not sensor.is_alive:
+            print(f"Sensor {sensor.id} has been destroyed.")
+            return None
+        
         # 假设Z轴方向向量固定为 [0, 0, 1] (垂直向上)
         direction_z = np.array([0, 0, 1])
         
@@ -142,9 +174,14 @@ class UAV:
         direction_y = direction_y / np.linalg.norm(direction_y)
         direction_z = direction_z / np.linalg.norm(direction_z)
 
-        # 获取传感器在车辆坐标系中的外参
+        # 获取传感器的位姿并转换为旋转矩阵
         sensor_transform = sensor.get_transform()
-        sensor_rotation_matrix = sensor_transform.get_rotation_matrix()
+        roll = sensor_transform.rotation.roll
+        pitch = sensor_transform.rotation.pitch
+        yaw = sensor_transform.rotation.yaw
+        sensor_rotation_matrix = self.euler_to_rotation_matrix(roll, pitch, yaw)
+
+        # 获取传感器的平移向量
         sensor_translation = np.array([sensor_transform.location.x, sensor_transform.location.y, sensor_transform.location.z])
 
         # 构建传感器在车辆坐标系中的外参矩阵
@@ -164,9 +201,13 @@ class UAV:
 
         return world_sensor_extrinsics
 
+
     def process_image(self, image, direction, sensor_type):
         file_name = self.rootDir + r'\_rgb_out\rgb_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
         image.save_to_disk(file_name)
+        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
+        self.sensors_data_counter += 1
+        self.check_and_save_yaml(image.frame)
 
     def process_depth_image(self, image, direction, sensor_type):
         file_name = self.rootDir + r'\_depth_out\depth_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
@@ -179,6 +220,71 @@ class UAV:
         pcd.points = o3d.utility.Vector3dVector(points)
         pcd_file_name = self.rootDir + r'\_dot_out\dot_uav%s_%s_%s_%06d.pcd' % (self.uav_id, direction, sensor_type, image.frame)
         o3d.io.write_point_cloud(pcd_file_name, pcd)
+        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
+        # self.sensors_data_counter += 1
+        # self.check_and_save_yaml(image.frame)
+
+    def check_and_save_yaml(self, frame):
+        if self.sensors_data_counter == self.total_sensors:
+            # 创建一个用于存储所有相机参数的字典
+            camera_params = {}
+
+            for idx, sensor in enumerate(self.sensors):
+
+                if not sensor.is_alive:
+                    print(f"Sensor {sensor.id} has been destroyed.")
+                    return None
+                
+                camera_id = f'camera{idx}'  # 动态生成 camera_id
+                extrinsics = self.calculate_extrinsics_with_x_direction(sensor, self.world_origin, self.direction_x)
+                intrinsics = self.get_intrinsics(sensor)
+
+                # 获取相机位姿
+                sensor_transform = sensor.get_transform()
+                cords = [
+                    sensor_transform.location.x, 
+                    sensor_transform.location.y, 
+                    sensor_transform.location.z, 
+                    sensor_transform.rotation.roll, 
+                    sensor_transform.rotation.yaw, 
+                    sensor_transform.rotation.pitch
+                ]
+
+                # 将相机的参数添加到字典中
+                camera_params[camera_id] = {
+                    'cords': cords,
+                    'extrinsic': extrinsics.tolist(),
+                    'intrinsic': intrinsics.tolist()
+                }
+            
+            # 生成YAML文件的路径
+            yaml_file = self.rootDir + r'\_yaml_out\yaml_uav%s_frame%06d.yaml' % (self.uav_id, frame)
+            
+            # 将所有相机的参数写入一个YAML文件
+            self.save_camera_params_to_yaml(camera_params, yaml_file)
+
+            # 重置计数器和帧数据
+            self.sensors_data_counter = 0
+            # self.frame_data.clear()
+
+
+    def save_camera_params_to_yaml(self, camera_params, yaml_file):
+        # 获取文件目录路径
+        directory = os.path.dirname(yaml_file)
+
+        # 如果目录不存在，则创建
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # 写入文件
+        try:
+            with open(yaml_file, 'w') as file:
+                yaml.dump(camera_params, file, default_flow_style=False)
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+
+
+
 
     def move(self):
         """
@@ -207,11 +313,11 @@ class UAV:
                 self.tick_counter = 0
                 self.move()
 
-    def set_rgb_sensors_active(self, sensor_num, active=True):
-        self.rgb_sensors_active[sensor_num] = active
+    def set_world_origin(self, origin):
+        self.world_origin = origin
 
-    def set_depth_sensors_active(self, sensor_num, active=True):
-        self.depth_sensors_active[sensor_num] = active
+    def set_direction_x(self, direction_x):
+        self.direction_x = direction_x
 
     def set_sensors_capture_intervals(self, intervals):
         self.sensors_capture_intervals = intervals

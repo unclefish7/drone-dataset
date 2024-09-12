@@ -45,6 +45,8 @@ if synchronous_mode:
     settings.fixed_delta_seconds = 0.2 # < 0.5
 world.apply_settings(settings)
 
+total_sec = 5
+
 # 以上为基础设置
 #####################################################################
 def get_actor_blueprints(world, filter):
@@ -139,7 +141,7 @@ def main():
         # 相关参数设置
         uavs = []
 
-        location1 = carla.Location(x=50, y=0, z=50)
+        location1 = carla.Location(x=0, y=0, z=50)
         uavs.append(UAV(world, location1, uav_id=1, yaw_angle=0))
 
         # delta_location = carla.Location(x=5, y=0, z=0)
@@ -171,7 +173,9 @@ def main():
 
 #################################################################################
         # 开始运行        
-        tick_interval = 0.01  # 每个tick之间等待1秒
+        tick_interval = 1.0 / 10  # 10帧
+
+        begin_time = time.time()
 
         while True:
             start_time = time.time()
@@ -187,6 +191,9 @@ def main():
             elapsed_time = time.time() - start_time
             if elapsed_time < tick_interval:
                 time.sleep(tick_interval - elapsed_time)
+
+            if time.time() - begin_time > total_sec:
+                break
 
 
     finally:# 结束运行
