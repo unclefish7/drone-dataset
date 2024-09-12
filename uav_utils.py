@@ -105,6 +105,65 @@ class UAV:
                 depth_sensor.listen(lambda data, dir=direction: self.process_depth_image(data, dir, "depth"))
             self.sensors.append(depth_sensor)
 
+    def get_intrinsics(sensor):
+        fov = float(sensor.attributes['fov'])  # 获取FOV
+        image_width = int(sensor.attributes['image_size_x'])  # 图像宽度
+        image_height = int(sensor.attributes['image_size_y'])  # 图像高度
+
+        # 分别计算fx和fy
+        fx = image_width / (2.0 * np.tan(fov * np.pi / 360.0))
+        fy = image_height / (2.0 * np.tan(fov * np.pi / 360.0))
+
+        intrinsics = np.array([
+            [fx, 0, image_width / 2],
+            [0, fy, image_height / 2],
+            [0, 0, 1]
+        ])
+        
+        return intrinsics
+    
+    def calculate_extrinsics_with_x_direction(sensor, world_origin, direction_x):
+        """
+        计算传感器相对于世界坐标系的外参，通过世界坐标系的原点和X轴方向向量生成旋转矩阵。
+        
+        :param sensor: 传感器对象
+        :param world_origin: 世界坐标系的原点 [x, y, z]
+        :param direction_x: 世界坐标系的X轴方向向量 [x, y, z]
+        :return: 传感器相对于世界坐标系的外参矩阵
+        """
+        # 假设Z轴方向向量固定为 [0, 0, 1] (垂直向上)
+        direction_z = np.array([0, 0, 1])
+        
+        # 通过X轴和Z轴计算Y轴方向向量
+        direction_y = np.cross(direction_z, direction_x)
+        
+        # 归一化所有方向向量
+        direction_x = direction_x / np.linalg.norm(direction_x)
+        direction_y = direction_y / np.linalg.norm(direction_y)
+        direction_z = direction_z / np.linalg.norm(direction_z)
+
+        # 获取传感器在车辆坐标系中的外参
+        sensor_transform = sensor.get_transform()
+        sensor_rotation_matrix = sensor_transform.get_rotation_matrix()
+        sensor_translation = np.array([sensor_transform.location.x, sensor_transform.location.y, sensor_transform.location.z])
+
+        # 构建传感器在车辆坐标系中的外参矩阵
+        sensor_extrinsics = np.hstack((sensor_rotation_matrix, sensor_translation.reshape(3, 1)))
+        sensor_extrinsics = np.vstack((sensor_extrinsics, [0, 0, 0, 1]))
+
+        # 构建世界坐标系的旋转矩阵
+        rotation_matrix = np.array([direction_x, direction_y, direction_z]).T
+
+        # 构建世界坐标系的变换矩阵
+        translation = np.array(world_origin).reshape(3, 1)
+        world_extrinsics = np.hstack((rotation_matrix, translation))
+        world_extrinsics = np.vstack((world_extrinsics, [0, 0, 0, 1]))
+
+        # 通过矩阵乘法得到传感器相对于世界坐标系的外参
+        world_sensor_extrinsics = np.dot(world_extrinsics, sensor_extrinsics)
+
+        return world_sensor_extrinsics
+
     def process_image(self, image, direction, sensor_type):
         file_name = self.rootDir + r'\_rgb_out\rgb_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
         image.save_to_disk(file_name)
