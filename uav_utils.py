@@ -74,12 +74,19 @@ class UAV:
         self.sensors.append(depth_sensor)
 
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_blueprint.set_attribute('range', '100.0')
+        lidar_blueprint.set_attribute("channels", '128.0')
+        lidar_blueprint.set_attribute('range', '200.0')
         lidar_blueprint.set_attribute('rotation_frequency', '10.0')
-        lidar_blueprint.set_attribute('points_per_second', '56000')
+        # lidar_blueprint.set_attribute('horizontal_fov', '180.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
+
+        lidar_blueprint.set_attribute('upper_fov','0.0')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        lidar_blueprint.set_attribute('points_per_second', '1000000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))  # 根据需要调整位置
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))  # 根据需要调整位置
+        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))  # 根据需要调整位置
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
         lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
         # lidar_sensor.listen(lambda data: self.draw_lidar(self.display,self.process_lidar_data(data)))
@@ -132,13 +139,16 @@ class UAV:
         # # image.save_to_disk(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_depth_out\depth_%s_%s_%06d.png' % (direction, sensor_type, image.frame))
 
     def process_dot_image(self, image, direction, sensor_type):
-        points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-        points = np.reshape(points, (int(points.shape[0] / 4), 4))
+        data = np.copy(np.frombuffer(image.raw_data, dtype=np.dtype('f4')))
+        data = np.reshape(data, (int(data.shape[0] / 4), 4))
 
+        # 翻转x轴
+        # points = data[:, :-1]
+        points = data[:, :3]
+        points[:, 1] = -points[:, 1]
         # 保存为PCD格式
         pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points[:, :3])
-
+        pcd.points = o3d.utility.Vector3dVector(points)
 
         o3d.io.write_point_cloud(r'D:\CARLA_Latest\WindowsNoEditor\myDemo\_dot_out\dot_%s_%s_%06d.pcd' % (direction, sensor_type, image.frame), pcd)
 

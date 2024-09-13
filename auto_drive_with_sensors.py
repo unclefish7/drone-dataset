@@ -18,7 +18,9 @@ synchronous_mode = True
 tm_port = 8000
 
 client = carla.Client(host, port)
-client.set_timeout(10.0)
+# client = carla.Client('localhost', port)
+
+client.set_timeout(30.0)
 
 world = client.get_world()
 
@@ -30,26 +32,18 @@ if not world:
 traffic_manager = client.get_trafficmanager(tm_port)
 
 settings = world.get_settings()
-
-default_substep = settings.max_substeps
-default_substep_delta_time = settings.max_substep_delta_time
-
-print("default_substep:", default_substep)
-print("default_substep_delta_time:", default_substep_delta_time)
-
 if synchronous_mode:
     traffic_manager.set_synchronous_mode(True)
     settings.synchronous_mode = True
-    settings.max_substep_delta_time = 0.02
-    settings.max_substeps = 10 # 1-16
-    settings.fixed_delta_seconds = 0.2 # < 0.5
+    settings.fixed_delta_seconds = 0.5
+    # settings.max_substep_delta_time = 0.5
+    # settings.max_substeps = 10
 world.apply_settings(settings)
 
 # 以上为基础设置
 #####################################################################
 def get_actor_blueprints(world, filter):
     return world.get_blueprint_library().filter(filter)
-
 
 
 # 再深入了解一下转换的原理
@@ -139,23 +133,8 @@ def main():
         # 相关参数设置
         uavs = []
 
-        location1 = carla.Location(x=50, y=0, z=50)
-        uavs.append(UAV(world, location1, uav_id=1, yaw_angle=0))
-
-        # delta_location = carla.Location(x=5, y=0, z=0)
-        # uavs[0].enable_movement(True)
-        # uavs[0].set_delta_location(delta_location)
-
-        location2 = carla.Location(x=50, y=50, z=50)
-        uavs.append(UAV(world, location2, uav_id=2, yaw_angle=90))
-
-        location3 = carla.Location(x=0, y=50, z=50)
-        uavs.append(UAV(world, location3, uav_id=3, yaw_angle=180))
-
-        location4 = carla.Location(x=0, y=0, z=50)
-        uavs.append(UAV(world, location4, uav_id=4, yaw_angle=270))
-
-                
+        location1 = carla.Location(x=0, y=0, z=30)
+        uavs.append(UAV(world, location1, 0))
 
         # 参考co-perception学习一下传感器相关设置
         # 传感器位深、分辨率、视野fov、如何将深度图转换为点云
@@ -170,32 +149,35 @@ def main():
 
 
 #################################################################################
-        # 开始运行        
-        tick_interval = 0.01  # 每个tick之间等待1秒
-
+        # 开始运行
         while True:
-            start_time = time.time()
-
             if synchronous_mode:
                 world.tick()
-                for uav in uavs:
-                    uav.update()
             else:
                 world.wait_for_tick()
 
-            # 控制tick频率
-            elapsed_time = time.time() - start_time
-            if elapsed_time < tick_interval:
-                time.sleep(tick_interval - elapsed_time)
-
-
     finally:# 结束运行
+        all_actors = world.get_actors()
+
+        # 筛选出载具（通过actor类型为carla.Vehicle）
+        vehicles = all_actors.filter('vehicle.*')
+        for vehicle in vehicles:
+            print(f"Vehicle ID: {vehicle.id}")
+            print(f"Vehicle Type: {vehicle.type_id}")
+            print(f"Vehicle Location: {vehicle.get_location()}")
+            print(f"Vehicle Velocity: {vehicle.get_velocity()}")
+            print(f"Vehicle Acceleration: {vehicle.get_acceleration()}")
+            print(f"Vehicle Bounding Box: {vehicle.bounding_box}")
+            print("-" * 30)
+
+        time.sleep(0.5)
+
         if synchronous_mode and world:
             settings = world.get_settings()
             settings.synchronous_mode = False
             settings.fixed_delta_seconds = None
-            settings.max_substep_delta_time = default_substep_delta_time
-            settings.max_substeps = default_substep
+            # settings.max_substep_delta_time = None
+            # settings.max_substeps = None
             world.apply_settings(settings)
 
         client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])
@@ -203,7 +185,7 @@ def main():
         for uav in uavs:
             uav.destroy()
 
-        time.sleep(0.5)
+
 
 if __name__ == '__main__':
     try:
