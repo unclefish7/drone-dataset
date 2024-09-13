@@ -144,7 +144,7 @@ def main():
 
         location1 = carla.Location(x=10, y=20, z=50)
         uavs.append(UAV(world, location1, uav_id=1, yaw_angle=0))
-        uavs[0].set_world_origin([30, 30, 60])
+        uavs[0].set_world_origin([10, 20, 50])
 
         # delta_location = carla.Location(x=5, y=0, z=0)
         # uavs[0].enable_movement(True)
