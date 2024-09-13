@@ -45,7 +45,8 @@ if synchronous_mode:
     settings.fixed_delta_seconds = 0.2 # < 0.5
 world.apply_settings(settings)
 
-total_sec = 5
+total_sec = 30
+total_tick = int(total_sec / settings.fixed_delta_seconds) + 1
 
 # 以上为基础设置
 #####################################################################
@@ -141,8 +142,9 @@ def main():
         # 相关参数设置
         uavs = []
 
-        location1 = carla.Location(x=0, y=0, z=50)
+        location1 = carla.Location(x=10, y=20, z=50)
         uavs.append(UAV(world, location1, uav_id=1, yaw_angle=0))
+        uavs[0].set_world_origin([30, 30, 60])
 
         # delta_location = carla.Location(x=5, y=0, z=0)
         # uavs[0].enable_movement(True)
@@ -173,15 +175,16 @@ def main():
 
 #################################################################################
         # 开始运行        
-        tick_interval = 1.0 / 10  # 10帧
+        tick_interval = 1.0 / 30  # 渲染帧率
 
-        begin_time = time.time()
+        tick_count = 0
 
         while True:
             start_time = time.time()
 
             if synchronous_mode:
                 world.tick()
+                tick_count += 1
                 for uav in uavs:
                     uav.update()
             else:
@@ -192,7 +195,7 @@ def main():
             if elapsed_time < tick_interval:
                 time.sleep(tick_interval - elapsed_time)
 
-            if time.time() - begin_time > total_sec:
+            if tick_count > total_tick:
                 break
 
 

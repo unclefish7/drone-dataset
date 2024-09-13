@@ -4,6 +4,7 @@ import open3d as o3d
 from PIL import Image
 import yaml
 import os
+import time
 
 
 def depth_to_point_cloud(depth_map):
@@ -29,7 +30,7 @@ class UAV:
 
         self.yaw_angle = yaw_angle
         self.uav_id = uav_id  # 添加UAV的唯一ID
-        self.rootDir = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo'
+        self.rootDir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
 
         self.static_actor = None
         self.sensors = []
@@ -203,14 +204,14 @@ class UAV:
 
 
     def process_image(self, image, direction, sensor_type):
-        file_name = self.rootDir + r'\_rgb_out\rgb_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
+        file_name = self.rootDir + r'\rgb_%s_%06d.png' % (direction, image.frame)
         image.save_to_disk(file_name)
         # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
         self.sensors_data_counter += 1
         self.check_and_save_yaml(image.frame)
 
     def process_depth_image(self, image, direction, sensor_type):
-        file_name = self.rootDir + r'\_depth_out\depth_uav%s_%s_%s_%06d.png' % (self.uav_id, direction, sensor_type, image.frame)
+        file_name = self.rootDir + r'\depth_%s_%06d.png' % (direction, image.frame)
         image.convert(carla.ColorConverter.LogarithmicDepth)
         image.save_to_disk(file_name)
         depth_map = Image.open(file_name).convert("L")
@@ -218,11 +219,53 @@ class UAV:
         points = depth_to_point_cloud(depth_map)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = self.rootDir + r'\_dot_out\dot_uav%s_%s_%s_%06d.pcd' % (self.uav_id, direction, sensor_type, image.frame)
+        pcd_file_name = self.rootDir + r'dot_%s_%06d.pcd' % (direction, image.frame)
         o3d.io.write_point_cloud(pcd_file_name, pcd)
         # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
         # self.sensors_data_counter += 1
         # self.check_and_save_yaml(image.frame)
+    
+    def calculate_world_coordinates(self, sensor_transform, world_origin, direction_x):
+        # 定义世界坐标系的Z轴为垂直向上
+        direction_z = np.array([0, 0, 1])
+        
+        # 通过X轴和Z轴叉乘计算Y轴方向
+        direction_y = np.cross(direction_z, direction_x)
+        
+        # 归一化所有方向向量
+        direction_x = direction_x / np.linalg.norm(direction_x)
+        direction_y = direction_y / np.linalg.norm(direction_y)
+        direction_z = direction_z / np.linalg.norm(direction_z)
+
+        # 构建世界坐标系的旋转矩阵
+        world_rotation_matrix = np.array([direction_x, direction_y, direction_z]).T
+
+        # 相机的局部坐标
+        local_translation = np.array([sensor_transform.location.x, 
+                                    sensor_transform.location.y, 
+                                    sensor_transform.location.z])
+        
+        # 将局部坐标转换为世界坐标
+        world_translation = np.dot(world_rotation_matrix, local_translation) + world_origin
+
+        # 提取相机旋转信息
+        roll = sensor_transform.rotation.roll
+        pitch = sensor_transform.rotation.pitch
+        yaw = sensor_transform.rotation.yaw
+
+        world_translation = np.array(world_translation, dtype=float)
+        
+        # 返回转换后的坐标
+        cords = [
+            float(world_translation[0]),  # x
+            float(world_translation[1]),  # y
+            float(world_translation[2]),  # z
+            float(roll),  # roll
+            float(yaw),   # yaw
+            float(pitch)  # pitch
+        ]
+        
+        return cords
 
     def check_and_save_yaml(self, frame):
         if self.sensors_data_counter == self.total_sensors:
@@ -241,14 +284,7 @@ class UAV:
 
                 # 获取相机位姿
                 sensor_transform = sensor.get_transform()
-                cords = [
-                    sensor_transform.location.x, 
-                    sensor_transform.location.y, 
-                    sensor_transform.location.z, 
-                    sensor_transform.rotation.roll, 
-                    sensor_transform.rotation.yaw, 
-                    sensor_transform.rotation.pitch
-                ]
+                cords = self.calculate_world_coordinates(sensor_transform, self.world_origin, self.direction_x)
 
                 # 将相机的参数添加到字典中
                 camera_params[camera_id] = {
@@ -258,7 +294,7 @@ class UAV:
                 }
             
             # 生成YAML文件的路径
-            yaml_file = self.rootDir + r'\_yaml_out\yaml_uav%s_frame%06d.yaml' % (self.uav_id, frame)
+            yaml_file = self.rootDir + r'\yaml_frame%06d.yaml' % (frame)
             
             # 将所有相机的参数写入一个YAML文件
             self.save_camera_params_to_yaml(camera_params, yaml_file)
@@ -335,6 +371,7 @@ class UAV:
         self.noise_std = noise_std
 
     def destroy(self):
+        time.sleep(1)
         for sensor in self.sensors:
             sensor.destroy()
         if self.static_actor is not None:
