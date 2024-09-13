@@ -7,13 +7,15 @@ import os
 import time
 
 
+
 def depth_to_point_cloud(depth_map):
+    # h, w = depth_map.shape
     fx = 2892.33
     fy = 2883.18
     cx = 823.205
     cy = 619.071
 
-    h, w = depth_map.shape
+    h, w = 450, 800
     points = []
     for v in range(h):
         for u in range(w):
@@ -82,6 +84,26 @@ class UAV:
             rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
         self.sensors.append(rgb_sensor)
 
+        lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
+        lidar_blueprint.set_attribute("channels", '128.0')
+        lidar_blueprint.set_attribute('range', '200.0')
+        lidar_blueprint.set_attribute('rotation_frequency', '10.0')
+        # lidar_blueprint.set_attribute('horizontal_fov', '180.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
+
+        lidar_blueprint.set_attribute('upper_fov','0.0')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        lidar_blueprint.set_attribute('points_per_second', '1000000')
+        lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))  # 根据需要调整位置
+        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))  # 根据需要调整位置
+        lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
+        lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
+        # lidar_sensor.listen(lambda data: self.draw_lidar(self.display,self.process_lidar_data(data)))
+
+        self.sensors.append(lidar_sensor)
+
         # 创建四个不同方向的传感器
         for direction, yaw in zip(directions, yaw_angles):
             adjusted_yaw = yaw - self.yaw_angle  # 根据无人机的朝向调整传感器的朝向
@@ -97,6 +119,30 @@ class UAV:
             if self.rgb_sensors_active[yaw // 90]:
                 rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
             self.sensors.append(rgb_sensor)
+
+    def process_image(self, image, direction, sensor_type):
+        file_name = self.rootDir + r'\rgb_%s_%06d.png' % (direction, image.frame)
+        image.save_to_disk(file_name)
+        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
+        self.sensors_data_counter += 1
+        self.check_and_save_yaml(image.frame)
+
+    def process_dot_image(self, image, direction, sensor_type):
+        data = np.copy(np.frombuffer(image.raw_data, dtype=np.dtype('f4')))
+        data = np.reshape(data, (int(data.shape[0] / 4), 4))
+
+        # 翻转x轴
+        # points = data[:, :-1]
+        points = data[:, :3]
+        points[:, 1] = -points[:, 1]
+        # 保存为PCD格式
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd_file_name = self.rootDir + r'dot_%s_%06d.pcd' % (direction, image.frame)
+        o3d.io.write_point_cloud(pcd_file_name, pcd)
+        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
+        # self.sensors_data_counter += 1
+        # self.check_and_save_yaml(image.frame)
 
     def get_intrinsics(self, sensor):
         if not sensor.is_alive:
@@ -201,29 +247,6 @@ class UAV:
         world_sensor_extrinsics = np.dot(world_extrinsics, sensor_extrinsics)
 
         return world_sensor_extrinsics
-
-
-    def process_image(self, image, direction, sensor_type):
-        file_name = self.rootDir + r'\rgb_%s_%06d.png' % (direction, image.frame)
-        image.save_to_disk(file_name)
-        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
-        self.sensors_data_counter += 1
-        self.check_and_save_yaml(image.frame)
-
-    def process_depth_image(self, image, direction, sensor_type):
-        file_name = self.rootDir + r'\depth_%s_%06d.png' % (direction, image.frame)
-        image.convert(carla.ColorConverter.LogarithmicDepth)
-        image.save_to_disk(file_name)
-        depth_map = Image.open(file_name).convert("L")
-        depth_map = np.array(depth_map)
-        points = depth_to_point_cloud(depth_map)
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = self.rootDir + r'dot_%s_%06d.pcd' % (direction, image.frame)
-        o3d.io.write_point_cloud(pcd_file_name, pcd)
-        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
-        # self.sensors_data_counter += 1
-        # self.check_and_save_yaml(image.frame)
     
     def calculate_world_coordinates(self, sensor_transform, world_origin, direction_x):
         # 定义世界坐标系的Z轴为垂直向上
@@ -372,7 +395,10 @@ class UAV:
 
     def destroy(self):
         time.sleep(1)
+
+        # 销毁所有传感器
         for sensor in self.sensors:
             sensor.destroy()
+        # 销毁静态演员
         if self.static_actor is not None:
             self.static_actor.destroy()

@@ -200,6 +200,21 @@ def main():
 
 
     finally:# 结束运行
+        all_actors = world.get_actors()
+
+        # 筛选出载具（通过actor类型为carla.Vehicle）
+        vehicles = all_actors.filter('vehicle.*')
+        for vehicle in vehicles:
+            print(f"Vehicle ID: {vehicle.id}")
+            print(f"Vehicle Type: {vehicle.type_id}")
+            print(f"Vehicle Location: {vehicle.get_location()}")
+            print(f"Vehicle Velocity: {vehicle.get_velocity()}")
+            print(f"Vehicle Acceleration: {vehicle.get_acceleration()}")
+            print(f"Vehicle Bounding Box: {vehicle.bounding_box}")
+            print("-" * 30)
+
+        time.sleep(0.5)
+
         if synchronous_mode and world:
             settings = world.get_settings()
             settings.synchronous_mode = False
@@ -213,7 +228,7 @@ def main():
         for uav in uavs:
             uav.destroy()
 
-        time.sleep(0.5)
+
 
 if __name__ == '__main__':
     try:
