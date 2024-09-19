@@ -20,7 +20,7 @@ def transform_to_matrix(transform):
     """
     # 获取位置信息
     location = transform.location
-    x, y, z = location.x, location.y, location.z
+    x, y, z = location.x, -location.y, location.z
     
     # 获取旋转角度并转换为弧度
     pitch = math.radians(transform.rotation.pitch)
@@ -72,8 +72,8 @@ def compute_matrix_world_to_given(world_origin, direction_x, direction_z=np.arra
     direction_x = direction_x / np.linalg.norm(direction_x)
     direction_z = direction_z / np.linalg.norm(direction_z)
 
-    # 根据左手定则计算 y 轴方向
-    direction_y = np.cross(direction_x, direction_z)
+    # 根据右手定则计算 y 轴方向
+    direction_y = np.cross(direction_z, direction_x)
     direction_y = direction_y / np.linalg.norm(direction_y)
 
     # 构造旋转矩阵
@@ -341,9 +341,7 @@ class UAV:
                 camera_id = f'camera{idx}'  # 动态生成相机 ID
 
                 # 计算变换矩阵
-                T_sensor_to_actor = transform_to_matrix(sensor.get_transform())
-                T_actor_to_world = transform_to_matrix(self.static_actor.get_transform())
-                T_sensor_to_world = np.dot(T_actor_to_world, T_sensor_to_actor)
+                T_sensor_to_world = transform_to_matrix(sensor.get_transform())
                 T_world_to_given = compute_matrix_world_to_given(self.world_origin, self.direction_x)
 
                 # 获取外参和位姿
