@@ -7,6 +7,45 @@ import os
 import time
 import math
 
+def transform_to_matrix(transform):
+    # 获取位置
+    location = transform.location
+    x, y, z = location.x, location.y, location.z
+    
+    # 获取旋转角度并转换为弧度
+    pitch = math.radians(transform.rotation.pitch)
+    yaw = math.radians(transform.rotation.yaw)
+    roll = math.radians(transform.rotation.roll)
+
+    # 计算旋转矩阵 (3x3)
+    Rx = np.array([
+        [1, 0, 0],
+        [0, math.cos(pitch), -math.sin(pitch)],
+        [0, math.sin(pitch), math.cos(pitch)]
+    ])
+    
+    Ry = np.array([
+        [math.cos(roll), 0, math.sin(roll)],
+        [0, 1, 0],
+        [-math.sin(roll), 0, math.cos(roll)]
+    ])
+    
+    Rz = np.array([
+        [math.cos(yaw), -math.sin(yaw), 0],
+        [math.sin(yaw), math.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+
+    # 组合旋转矩阵
+    rotation_matrix = np.dot(Rz, np.dot(Ry, Rx))
+
+    # 构造 4x4 的变换矩阵
+    transform_matrix = np.identity(4)
+    transform_matrix[:3, :3] = rotation_matrix
+    transform_matrix[:3, 3] = [x, y, z]
+
+    return transform_matrix
+
 
 class UAV:
     def __init__(self, world, location, uav_id, yaw_angle=0):
@@ -35,8 +74,10 @@ class UAV:
         self.delta_location = carla.Location(0, 0, 0)  # 默认的位移向量
         self.noise_std = 0  # 随机扰动的标准差
 
-        self.rgb_sensors_active = [True, True, True, True, True]
-        # self.rgb_sensors_active = [False, False, False, True, True]
+        # self.rgb_sensors_active = [True, True, True, True, True]
+        self.rgb_sensors_active = False
+
+        self.dot_sensors_active = False
 
         self.spawn_uav()
 
@@ -70,7 +111,7 @@ class UAV:
 
         rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-        if self.rgb_sensors_active[4]:
+        if self.rgb_sensors_active:
             rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
         self.sensors.append(rgb_sensor)
 
@@ -89,7 +130,8 @@ class UAV:
         lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))  # 根据需要调整位置
         # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))  # 根据需要调整位置
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
-        lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
+        if self.dot_sensors_active:
+            lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
         # lidar_sensor.listen(lambda data: self.draw_lidar(self.display,self.process_lidar_data(data)))
 
         self.lidar_sensor = lidar_sensor
@@ -106,7 +148,7 @@ class UAV:
 
             rgb_transform = carla.Transform(carla.Location(x=offset[0], y=offset[1], z=offset[2]), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-            if self.rgb_sensors_active[yaw // 90]:
+            if self.rgb_sensors_active:
                 rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
             self.sensors.append(rgb_sensor)
 
