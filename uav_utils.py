@@ -5,25 +5,8 @@ from PIL import Image
 import yaml
 import os
 import time
+import math
 
-
-
-def depth_to_point_cloud(depth_map):
-    # h, w = depth_map.shape
-    fx = 2892.33
-    fy = 2883.18
-    cx = 823.205
-    cy = 619.071
-
-    h, w = 450, 800
-    points = []
-    for v in range(h):
-        for u in range(w):
-            Z = depth_map[v, u]
-            X = (u - cx) * Z / fx
-            Y = (v - cy) * Z / fy
-            points.append([X, Y, Z])
-    return np.array(points)
 
 class UAV:
     def __init__(self, world, location, uav_id, yaw_angle=0):
@@ -36,10 +19,10 @@ class UAV:
 
         self.static_actor = None
         self.sensors = []
+        self.lidar_sensor = None
 
         self.sensors_data_counter = 0  # 计数器
-        self.total_sensors = 5  # 假设一共有5个传感器
-        # self.frame_data = {}  # 保存每一帧的数据
+        self.total_sensors = 6  # 假设一共有6个传感器
 
         self.world_origin = [0, 0, 0]  # 世界坐标系的原点
         self.direction_x = [1, 0, 0]  # 世界坐标系的X轴方向向量
@@ -64,8 +47,15 @@ class UAV:
         fov = 90
         capture_intervals = self.sensors_capture_intervals  # 无人机的移动频率应该和传感器的采集频率一致
 
-        directions = ["North", "East", "South", "West"]
+        directions = ["East", "South", "West", "North"]
         yaw_angles = [0, 90, 180, 270]
+        sensor_offset = [
+            [1, 0, -1],  # East: 沿x正方向偏移
+            [0, 1, -1],  # South: 沿y正方向偏移
+            [-1, 0, -1],  # West: 沿x负方向偏移
+            [0, -1, -1]   # North: 沿y负方向偏移
+        ]
+
 
         static_blueprint = self.world.get_blueprint_library().find('static.prop.box01')
         spawn_point = carla.Transform(self.location, carla.Rotation(yaw=self.yaw_angle))
@@ -102,10 +92,10 @@ class UAV:
         lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
         # lidar_sensor.listen(lambda data: self.draw_lidar(self.display,self.process_lidar_data(data)))
 
-        self.sensors.append(lidar_sensor)
+        self.lidar_sensor = lidar_sensor
 
         # 创建四个不同方向的传感器
-        for direction, yaw in zip(directions, yaw_angles):
+        for direction, yaw, offset in zip(directions, yaw_angles, sensor_offset):
             adjusted_yaw = yaw - self.yaw_angle  # 根据无人机的朝向调整传感器的朝向
 
             rgb_blueprint = self.world.get_blueprint_library().find('sensor.camera.rgb')
@@ -114,7 +104,7 @@ class UAV:
             rgb_blueprint.set_attribute('fov', str(fov))
             rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
-            rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
+            rgb_transform = carla.Transform(carla.Location(x=offset[0], y=offset[1], z=offset[2]), carla.Rotation(yaw=adjusted_yaw, pitch=pitch_degree))
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
             if self.rgb_sensors_active[yaw // 90]:
                 rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
@@ -123,7 +113,6 @@ class UAV:
     def process_image(self, image, direction, sensor_type):
         file_name = self.rootDir + r'\rgb_%s_%06d.png' % (direction, image.frame)
         image.save_to_disk(file_name)
-        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
         self.sensors_data_counter += 1
         self.check_and_save_yaml(image.frame)
 
@@ -138,11 +127,10 @@ class UAV:
         # 保存为PCD格式
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = self.rootDir + r'dot_%s_%06d.pcd' % (direction, image.frame)
+        pcd_file_name = self.rootDir + r'\dot_%s_%06d.pcd' % (direction, image.frame)
         o3d.io.write_point_cloud(pcd_file_name, pcd)
-        # self.frame_data[f'{sensor_type}_{direction}'] = image.frame
-        # self.sensors_data_counter += 1
-        # self.check_and_save_yaml(image.frame)
+        self.sensors_data_counter += 1
+        self.check_and_save_yaml(image.frame)
 
     def get_intrinsics(self, sensor):
         if not sensor.is_alive:
@@ -166,36 +154,6 @@ class UAV:
         return intrinsics
     
 
-    def euler_to_rotation_matrix(self, roll, pitch, yaw):
-        # 将欧拉角转换为弧度
-        roll = np.radians(roll)
-        pitch = np.radians(pitch)
-        yaw = np.radians(yaw)
-
-        # X轴旋转矩阵
-        Rx = np.array([
-            [1, 0, 0],
-            [0, np.cos(roll), -np.sin(roll)],
-            [0, np.sin(roll), np.cos(roll)]
-        ])
-
-        # Y轴旋转矩阵
-        Ry = np.array([
-            [np.cos(pitch), 0, np.sin(pitch)],
-            [0, 1, 0],
-            [-np.sin(pitch), 0, np.cos(pitch)]
-        ])
-
-        # Z轴旋转矩阵
-        Rz = np.array([
-            [np.cos(yaw), -np.sin(yaw), 0],
-            [np.sin(yaw), np.cos(yaw), 0],
-            [0, 0, 1]
-        ])
-
-        # 最终旋转矩阵
-        return np.dot(Rz, np.dot(Ry, Rx))
-
     def calculate_extrinsics_with_x_direction(self, sensor, world_origin, direction_x):
         """
         计算传感器相对于世界坐标系的外参，通过世界坐标系的原点和X轴方向向量生成旋转矩阵。
@@ -210,84 +168,89 @@ class UAV:
             print(f"Sensor {sensor.id} has been destroyed.")
             return None
         
-        # 假设Z轴方向向量固定为 [0, 0, 1] (垂直向上)
-        direction_z = np.array([0, 0, 1])
-        
-        # 通过X轴和Z轴计算Y轴方向向量
-        direction_y = np.cross(direction_z, direction_x)
-        
-        # 归一化所有方向向量
-        direction_x = direction_x / np.linalg.norm(direction_x)
-        direction_y = direction_y / np.linalg.norm(direction_y)
-        direction_z = direction_z / np.linalg.norm(direction_z)
-
-        # 获取传感器的位姿并转换为旋转矩阵
+        # 获取传感器相对于static_actor的相对变换
         sensor_transform = sensor.get_transform()
-        roll = sensor_transform.rotation.roll
-        pitch = sensor_transform.rotation.pitch
-        yaw = sensor_transform.rotation.yaw
-        sensor_rotation_matrix = self.euler_to_rotation_matrix(roll, pitch, yaw)
+        actor_transform = self.static_actor.get_transform()
 
-        # 获取传感器的平移向量
-        sensor_translation = np.array([sensor_transform.location.x, sensor_transform.location.y, sensor_transform.location.z])
+        # 计算传感器相对于世界坐标系的位置
+        sensor_world_location = actor_transform.transform(sensor_transform.location)
 
-        # 构建传感器在车辆坐标系中的外参矩阵
-        sensor_extrinsics = np.hstack((sensor_rotation_matrix, sensor_translation.reshape(3, 1)))
-        sensor_extrinsics = np.vstack((sensor_extrinsics, [0, 0, 0, 1]))
+        # 计算传感器相对于世界坐标系的旋转
+        sensor_world_rotation = actor_transform.rotation
+        sensor_world_rotation.roll += sensor_transform.rotation.roll
+        sensor_world_rotation.pitch += sensor_transform.rotation.pitch
+        sensor_world_rotation.yaw += sensor_transform.rotation.yaw
 
-        # 构建世界坐标系的旋转矩阵
+        # 定义给定坐标系的方向向量
+        direction_x = np.array(direction_x)
+        direction_x = direction_x / np.linalg.norm(direction_x)  # 归一化
+        direction_z = np.array([0, 0, 1])  # 竖直向上
+        direction_y = np.cross(direction_z, direction_x)  # 计算与 direction_x 和 direction_z 垂直的方向 y
+
+        # 构造给定坐标系的旋转矩阵
         rotation_matrix = np.array([direction_x, direction_y, direction_z]).T
 
-        # 构建世界坐标系的变换矩阵
-        translation = np.array(world_origin).reshape(3, 1)
-        world_extrinsics = np.hstack((rotation_matrix, translation))
-        world_extrinsics = np.vstack((world_extrinsics, [0, 0, 0, 1]))
+        # 构造给定坐标系的变换矩阵
+        world_to_custom_transform = np.eye(4)
+        world_to_custom_transform[:3, :3] = rotation_matrix  # 设置旋转部分
+        world_to_custom_transform[:3, 3] = np.array(world_origin)  # 设置平移部分
 
-        # 通过矩阵乘法得到传感器相对于世界坐标系的外参
-        world_sensor_extrinsics = np.dot(world_extrinsics, sensor_extrinsics)
+        # 将传感器位置从世界坐标系转换到自定义坐标系
+        sensor_location_world = np.array([sensor_world_location.x, sensor_world_location.y, sensor_world_location.z, 1])
+        sensor_world_matrix = np.eye(4)
+        sensor_world_matrix[:3, 3] = sensor_location_world[:3]
+        
+        # 计算外参矩阵
+        sensor_extrinsics = np.linalg.inv(world_to_custom_transform) @ sensor_world_matrix
 
-        return world_sensor_extrinsics
+        return sensor_extrinsics
     
-    def calculate_world_coordinates(self, sensor_transform, world_origin, direction_x):
-        # 定义世界坐标系的Z轴为垂直向上
-        direction_z = np.array([0, 0, 1])
-        
-        # 通过X轴和Z轴叉乘计算Y轴方向
-        direction_y = np.cross(direction_z, direction_x)
-        
-        # 归一化所有方向向量
-        direction_x = direction_x / np.linalg.norm(direction_x)
-        direction_y = direction_y / np.linalg.norm(direction_y)
-        direction_z = direction_z / np.linalg.norm(direction_z)
+    def calculate_world_coordinates(self, sensor, world_origin, direction_x):
 
-        # 构建世界坐标系的旋转矩阵
-        world_rotation_matrix = np.array([direction_x, direction_y, direction_z]).T
+        if not sensor.is_alive:
+            print(f"Sensor {sensor.id} has been destroyed.")
+            return None
+    
+        # 获取传感器相对于static_actor的相对变换
+        sensor_transform = sensor.get_transform()
+        actor_transform = self.static_actor.get_transform()
 
-        # 相机的局部坐标
-        local_translation = np.array([sensor_transform.location.x, 
-                                    sensor_transform.location.y, 
-                                    sensor_transform.location.z])
-        
-        # 将局部坐标转换为世界坐标
-        world_translation = np.dot(world_rotation_matrix, local_translation) + world_origin
+        sensor_world_location = actor_transform.transform(sensor_transform.location)
 
-        # 提取相机旋转信息
-        roll = sensor_transform.rotation.roll
-        pitch = sensor_transform.rotation.pitch
-        yaw = sensor_transform.rotation.yaw
+        # 计算传感器相对于世界坐标系的旋转
+        sensor_world_rotation = actor_transform.rotation
+        sensor_world_rotation.roll += sensor_transform.rotation.roll
+        sensor_world_rotation.pitch += sensor_transform.rotation.pitch
+        sensor_world_rotation.yaw += sensor_transform.rotation.yaw
 
-        world_translation = np.array(world_translation, dtype=float)
-        
-        # 返回转换后的坐标
+        # 定义给定坐标系的方向向量
+        direction_x = np.array(direction_x)
+        direction_x = direction_x / np.linalg.norm(direction_x)  # 归一化
+        direction_z = np.array([0, 0, 1])  # 竖直向上
+        direction_y = np.cross(direction_z, direction_x)  # 计算与 direction_x 和 direction_z 垂直的方向 y
+
+        # 构造给定坐标系的旋转矩阵
+        rotation_matrix = np.array([direction_x, direction_y, direction_z]).T
+
+        # 构造给定坐标系的变换矩阵
+        world_to_custom_transform = np.eye(4)
+        world_to_custom_transform[:3, :3] = rotation_matrix  # 设置旋转部分
+        world_to_custom_transform[:3, 3] = np.array(world_origin)  # 设置平移部分
+
+        # 将传感器位置从世界坐标系转换到自定义坐标系
+        sensor_location_world = np.array([sensor_world_location.x, sensor_world_location.y, sensor_world_location.z, 1])
+        custom_location = np.linalg.inv(world_to_custom_transform) @ sensor_location_world
+
+        # 按照指定格式返回转换后的位姿
         cords = [
-            float(world_translation[0]),  # x
-            float(world_translation[1]),  # y
-            float(world_translation[2]),  # z
-            float(roll),  # roll
-            float(yaw),   # yaw
-            float(pitch)  # pitch
+            float(custom_location[0]),  # x
+            float(custom_location[1]),  # y
+            float(custom_location[2]),  # z
+            float(sensor_world_rotation.roll),  # roll
+            float(sensor_world_rotation.yaw),   # yaw
+            float(sensor_world_rotation.pitch)  # pitch
         ]
-        
+
         return cords
 
     def check_and_save_yaml(self, frame):
@@ -306,8 +269,7 @@ class UAV:
                 intrinsics = self.get_intrinsics(sensor)
 
                 # 获取相机位姿
-                sensor_transform = sensor.get_transform()
-                cords = self.calculate_world_coordinates(sensor_transform, self.world_origin, self.direction_x)
+                cords = self.calculate_world_coordinates(sensor, self.world_origin, self.direction_x)
 
                 # 将相机的参数添加到字典中
                 camera_params[camera_id] = {
@@ -324,7 +286,6 @@ class UAV:
 
             # 重置计数器和帧数据
             self.sensors_data_counter = 0
-            # self.frame_data.clear()
 
 
     def save_camera_params_to_yaml(self, camera_params, yaml_file):

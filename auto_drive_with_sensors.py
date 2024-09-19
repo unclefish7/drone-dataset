@@ -91,7 +91,7 @@ def main():
         )
 
         # 选择一种天气设置
-        selected_weather = "ClearNoon"
+        selected_weather = "ClearSunset"
         world.set_weather(weather_presets[selected_weather])
 
 ####################################################################################
@@ -142,9 +142,9 @@ def main():
         # 相关参数设置
         uavs = []
 
-        location1 = carla.Location(x=10, y=20, z=50)
+        location1 = carla.Location(x=0, y=0, z=50)
         uavs.append(UAV(world, location1, uav_id=1, yaw_angle=0))
-        uavs[0].set_world_origin([10, 20, 50])
+        # uavs[0].set_world_origin([10, 20, 50])
 
         # delta_location = carla.Location(x=5, y=0, z=0)
         # uavs[0].enable_movement(True)
@@ -203,17 +203,17 @@ def main():
         all_actors = world.get_actors()
 
         # 筛选出载具（通过actor类型为carla.Vehicle）
-        vehicles = all_actors.filter('vehicle.*')
-        for vehicle in vehicles:
-            print(f"Vehicle ID: {vehicle.id}")
-            print(f"Vehicle Type: {vehicle.type_id}")
-            print(f"Vehicle Location: {vehicle.get_location()}")
-            print(f"Vehicle Velocity: {vehicle.get_velocity()}")
-            print(f"Vehicle Acceleration: {vehicle.get_acceleration()}")
-            print(f"Vehicle Bounding Box: {vehicle.bounding_box}")
-            print("-" * 30)
+        # vehicles = all_actors.filter('vehicle.*')
+        # for vehicle in vehicles:
+        #     print(f"Vehicle ID: {vehicle.id}")
+        #     print(f"Vehicle Type: {vehicle.type_id}")
+        #     print(f"Vehicle Location: {vehicle.get_location()}")
+        #     print(f"Vehicle Velocity: {vehicle.get_velocity()}")
+        #     print(f"Vehicle Acceleration: {vehicle.get_acceleration()}")
+        #     print(f"Vehicle Bounding Box: {vehicle.bounding_box}")
+        #     print("-" * 30)
 
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
         if synchronous_mode and world:
             settings = world.get_settings()
