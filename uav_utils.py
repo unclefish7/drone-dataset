@@ -1,7 +1,6 @@
 import carla
 import numpy as np
 import open3d as o3d
-from PIL import Image
 import yaml
 import os
 import time
@@ -20,33 +19,35 @@ def transform_to_matrix(transform):
     """
     # 获取位置信息
     location = transform.location
-    x, y, z = location.x, -location.y, location.z
-    
-    # 获取旋转角度并转换为弧度
-    pitch = math.radians(transform.rotation.pitch)
-    yaw = math.radians(transform.rotation.yaw)
-    roll = math.radians(transform.rotation.roll)
+    x, y, z = location.x, -location.y, location.z  # 关于 y 的符号后面讨论
 
-    # 计算绕 x、y、z 轴的旋转矩阵
+    # 获取旋转角度并转换为弧度
+    roll = math.radians(transform.rotation.roll)    # Roll 对应于绕 X 轴旋转
+    pitch = math.radians(transform.rotation.pitch)  # Pitch 对应于绕 Y 轴旋转
+    yaw = math.radians(transform.rotation.yaw)      # Yaw 对应于绕 Z 轴旋转
+
+    # 计算绕 X 轴的旋转矩阵（Roll）
     Rx = np.array([
         [1, 0, 0],
-        [0, math.cos(pitch), -math.sin(pitch)],
-        [0, math.sin(pitch), math.cos(pitch)]
+        [0, math.cos(roll), -math.sin(roll)],
+        [0, math.sin(roll), math.cos(roll)]
     ])
-    
+
+    # 计算绕 Y 轴的旋转矩阵（Pitch）
     Ry = np.array([
-        [math.cos(roll), 0, math.sin(roll)],
+        [math.cos(pitch), 0, math.sin(pitch)],
         [0, 1, 0],
-        [-math.sin(roll), 0, math.cos(roll)]
+        [-math.sin(pitch), 0, math.cos(pitch)]
     ])
-    
+
+    # 计算绕 Z 轴的旋转矩阵（Yaw）
     Rz = np.array([
         [math.cos(yaw), -math.sin(yaw), 0],
         [math.sin(yaw), math.cos(yaw), 0],
         [0, 0, 1]
     ])
 
-    # 组合旋转矩阵
+    # 组合旋转矩阵（注意乘法顺序）
     rotation_matrix = np.dot(Rz, np.dot(Ry, Rx))
 
     # 构造 4x4 的变换矩阵
