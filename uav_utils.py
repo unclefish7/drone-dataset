@@ -7,89 +7,6 @@ import time
 import math
 from scipy.spatial.transform import Rotation as R
 
-def transform_to_matrix(transform):
-    """
-    将 CARLA 的 Transform 对象转换为 4x4 的变换矩阵。
-
-    参数：
-    - transform：carla.Transform 对象。
-
-    返回：
-    - transform_matrix：4x4 的 numpy 数组，表示变换矩阵。
-    """
-    # 获取位置信息
-    location = transform.location
-    x, y, z = location.x, -location.y, location.z  # 关于 y 的符号后面讨论
-
-    # 获取旋转角度并转换为弧度
-    roll = math.radians(transform.rotation.roll)    # Roll 对应于绕 X 轴旋转
-    pitch = math.radians(transform.rotation.pitch)  # Pitch 对应于绕 Y 轴旋转
-    yaw = math.radians(transform.rotation.yaw)      # Yaw 对应于绕 Z 轴旋转
-
-    # 计算绕 X 轴的旋转矩阵（Roll）
-    Rx = np.array([
-        [1, 0, 0],
-        [0, math.cos(roll), -math.sin(roll)],
-        [0, math.sin(roll), math.cos(roll)]
-    ])
-
-    # 计算绕 Y 轴的旋转矩阵（Pitch）
-    Ry = np.array([
-        [math.cos(pitch), 0, math.sin(pitch)],
-        [0, 1, 0],
-        [-math.sin(pitch), 0, math.cos(pitch)]
-    ])
-
-    # 计算绕 Z 轴的旋转矩阵（Yaw）
-    Rz = np.array([
-        [math.cos(yaw), -math.sin(yaw), 0],
-        [math.sin(yaw), math.cos(yaw), 0],
-        [0, 0, 1]
-    ])
-
-    # 组合旋转矩阵（注意乘法顺序）
-    rotation_matrix = np.dot(Rz, np.dot(Ry, Rx))
-
-    # 构造 4x4 的变换矩阵
-    transform_matrix = np.identity(4)
-    transform_matrix[:3, :3] = rotation_matrix
-    transform_matrix[:3, 3] = [x, y, z]
-
-    return transform_matrix
-
-def compute_matrix_world_to_given(world_origin, direction_x, direction_z=np.array([0, 0, 1])):
-    """
-    计算从世界坐标系到给定坐标系的变换矩阵。
-
-    参数：
-    - world_origin：给定坐标系的原点在世界坐标系中的位置（numpy 数组）。
-    - direction_x：给定坐标系的 x 轴方向向量（numpy 数组）。
-    - direction_z：给定坐标系的 z 轴方向向量，默认为 [0, 0, 1]。
-
-    返回：
-    - T_world_to_given：4x4 的 numpy 数组，从世界坐标系到给定坐标系的变换矩阵。
-    """
-    # 归一化方向向量
-    direction_x = direction_x / np.linalg.norm(direction_x)
-    direction_z = direction_z / np.linalg.norm(direction_z)
-
-    # 根据右手定则计算 y 轴方向
-    direction_y = np.cross(direction_z, direction_x)
-    direction_y = direction_y / np.linalg.norm(direction_y)
-
-    # 构造旋转矩阵
-    rotation_matrix = np.column_stack((direction_x, direction_y, direction_z))
-
-    # 构造从给定坐标系到世界坐标系的变换矩阵（T_given_to_world）
-    T_given_to_world = np.identity(4)
-    T_given_to_world[:3, :3] = rotation_matrix
-    T_given_to_world[:3, 3] = world_origin
-
-    # 计算 T_world_to_given，即 T_given_to_world 的逆矩阵
-    T_world_to_given = np.linalg.inv(T_given_to_world)
-
-    return T_world_to_given
-
 class UAV:
     def __init__(self, world, location, uav_id, yaw_angle=0):
         """
@@ -115,9 +32,6 @@ class UAV:
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
         self.total_sensors = 6         # 总的传感器数量
-
-        self.world_origin = [0, 0, 0]  # 给定坐标系的原点
-        self.direction_x = [1, 0, 0]   # 给定坐标系的 x 轴方向向量
 
         # 传感器采集间隔设置
         self.ticks_per_capture = 5  # 每隔多少个 tick 采集一次数据
@@ -148,33 +62,19 @@ class UAV:
         capture_intervals = self.sensors_capture_intervals  # 采集间隔
 
         # 不同方向的设置
-        directions = ["East", "South", "West", "North"]
+        directions = ["camera1", "camera2", "camera3", "camera4"]
         yaw_angles = [0, 90, 180, 270]
         sensor_offset = [
-            [1, 0, -1],   # East: 沿 x 正方向偏移
-            [0, 1, -1],   # South: 沿 y 正方向偏移
-            [-1, 0, -1],  # West: 沿 x 负方向偏移
-            [0, -1, -1]   # North: 沿 y 负方向偏移
+            [1, 0, -1],   # Front: 沿 x 正方向偏移
+            [0, 1, -1],   # Right: 沿 y 正方向偏移
+            [-1, 0, -1],  # Back: 沿 x 负方向偏移
+            [0, -1, -1]   # Left: 沿 y 负方向偏移
         ]
 
         # 生成静态演员，表示无人机的位置
         static_blueprint = self.world.get_blueprint_library().find('static.prop.box01')
         spawn_point = carla.Transform(self.location, carla.Rotation(yaw=self.yaw_angle))
         self.static_actor = self.world.spawn_actor(static_blueprint, spawn_point)
-
-        # 创建垂直向下的 RGB 相机
-        rgb_blueprint = self.world.get_blueprint_library().find('sensor.camera.rgb')
-        rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
-        rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
-        rgb_blueprint.set_attribute('fov', str(fov))
-        rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-
-        # 设置相机的变换（位置和旋转）
-        rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-        rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
-        if self.rgb_sensors_active:
-            rgb_sensor.listen(lambda data: self.process_image(data, "down", "rgb"))
-        self.sensors.append(rgb_sensor)
 
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
@@ -191,9 +91,23 @@ class UAV:
         lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
         if self.dot_sensors_active:
-            lidar_sensor.listen(lambda data: self.process_dot_image(data, "down", "dot"))
+            lidar_sensor.listen(lambda data: self.process_dot_image(data))
         # 存储激光雷达传感器
         self.lidar_sensor = lidar_sensor
+
+        # 创建垂直向下的 RGB 相机
+        rgb_blueprint = self.world.get_blueprint_library().find('sensor.camera.rgb')
+        rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
+        rgb_blueprint.set_attribute('image_size_y', str(image_size_y))
+        rgb_blueprint.set_attribute('fov', str(fov))
+        rgb_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+
+        # 设置相机的变换（位置和旋转）
+        rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+        rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
+        if self.rgb_sensors_active:
+            rgb_sensor.listen(lambda data: self.process_image(data, "camera0"))
+        self.sensors.append(rgb_sensor)
 
         # 创建四个不同方向的 RGB 相机
         for direction, yaw, offset in zip(directions, yaw_angles, sensor_offset):
@@ -211,33 +125,30 @@ class UAV:
             )
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
             if self.rgb_sensors_active:
-                rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir, "rgb"))
+                rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir))
             self.sensors.append(rgb_sensor)
 
-    def process_image(self, image, direction, sensor_type):
+    def process_image(self, image, direction):
         """
         处理并保存传感器的图像数据。
 
         参数：
         - image：传感器返回的图像数据。
         - direction：图像的方向标签。
-        - sensor_type：传感器类型（"rgb"）。
         """
         # 生成文件名并保存图像
-        file_name = os.path.join(self.rootDir, f'{sensor_type}_{direction}_{image.frame:06d}.png')
+        file_name = os.path.join(self.rootDir, f'{image.frame:06d}_{direction}.png')
         image.save_to_disk(file_name)
         # 增加数据计数器并检查是否需要保存参数
         self.sensors_data_counter += 1
         self.check_and_save_yaml(image.frame)
 
-    def process_dot_image(self, image, direction, sensor_type):
+    def process_dot_image(self, image):
         """
         处理并保存激光雷达的点云数据。
 
         参数：
         - image：传感器返回的点云数据。
-        - direction：数据的方向标签。
-        - sensor_type：传感器类型（"dot"）。
         """
         # 将原始数据转换为 numpy 数组
         data = np.copy(np.frombuffer(image.raw_data, dtype=np.dtype('f4')))
@@ -251,7 +162,7 @@ class UAV:
         # 创建点云并保存为 PCD 文件
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = os.path.join(self.rootDir, f'{sensor_type}_{direction}_{image.frame:06d}.pcd')
+        pcd_file_name = os.path.join(self.rootDir, f'{image.frame:06d}.pcd')
         o3d.io.write_point_cloud(pcd_file_name, pcd)
         # 增加数据计数器并检查是否需要保存参数
         self.sensors_data_counter += 1
@@ -288,37 +199,33 @@ class UAV:
         
         return intrinsics
 
-    def get_sensor_extrinsics_and_pose(self, T_sensor_to_world, T_world_to_given):
+    def get_sensor_extrinsics_and_pose(self, sensor):
         """
         计算传感器相对于给定坐标系的外参矩阵和位姿。
 
         参数：
         - T_sensor_to_world：传感器相对于世界坐标系的变换矩阵。
-        - T_world_to_given：世界坐标系相对于给定坐标系的变换矩阵。
 
         返回：
         - extrinsics：4x4 的 numpy 数组，表示外参矩阵。
         - pose：长度为 6 的 numpy 数组，包含 [x, y, z, roll, pitch, yaw]，角度以度为单位。
         """
-        # 计算传感器相对于给定坐标系的变换矩阵
-        T_sensor_to_given = np.dot(T_world_to_given, T_sensor_to_world)
-        
-        # 提取平移向量
-        translation_vector = T_sensor_to_given[:3, 3]
-        x, y, z = translation_vector
 
-        # 提取旋转矩阵
-        rotation_matrix = T_sensor_to_given[:3, :3]
-        
-        # 将旋转矩阵转换为欧拉角（roll, pitch, yaw），以度为单位
-        r = R.from_matrix(rotation_matrix)
-        roll, pitch, yaw = r.as_euler('xyz', degrees=True)
-        
-        # 组合位姿数组
-        pose = np.array([x, y, z, roll, pitch, yaw])
-        
-        # 外参矩阵就是 T_sensor_to_given
-        extrinsics = T_sensor_to_given
+        sensor_transform = sensor.get_transform()
+
+        # 计算传感器相对于给定坐标系的变换矩阵
+        extrinsics = np.array(sensor.get_transform().get_matrix())
+        # 计算位姿
+        x = sensor_transform.location.x
+        y = sensor_transform.location.y
+        z = sensor_transform.location.z
+
+        # 提取旋转（以度为单位）
+        roll = sensor_transform.rotation.roll
+        yaw = sensor_transform.rotation.yaw
+        pitch = sensor_transform.rotation.pitch
+
+        pose = np.array([x, y, z, roll, yaw, pitch])
         
         return extrinsics, pose
 
@@ -341,12 +248,8 @@ class UAV:
                 
                 camera_id = f'camera{idx}'  # 动态生成相机 ID
 
-                # 计算变换矩阵
-                T_sensor_to_world = transform_to_matrix(sensor.get_transform())
-                T_world_to_given = compute_matrix_world_to_given(self.world_origin, self.direction_x)
-
                 # 获取外参和位姿
-                extrinsics, pose = self.get_sensor_extrinsics_and_pose(T_sensor_to_world, T_world_to_given)
+                extrinsics, pose = self.get_sensor_extrinsics_and_pose(sensor)
                 intrinsics = self.get_intrinsics(sensor)
 
                 # 将相机的参数添加到字典中
@@ -357,7 +260,7 @@ class UAV:
                 }
             
             # 生成 YAML 文件的路径
-            yaml_file = os.path.join(self.rootDir, f'yaml_frame{frame:06d}.yaml')
+            yaml_file = os.path.join(self.rootDir, f'{frame:06d}.yaml')
             
             # 将所有相机的参数写入一个 YAML 文件
             self.save_camera_params_to_yaml(camera_params, yaml_file)
@@ -416,12 +319,6 @@ class UAV:
                 self.move()
 
     # 设置各种参数的函数
-    def set_world_origin(self, origin):
-        self.world_origin = origin
-
-    def set_direction_x(self, direction_x):
-        self.direction_x = direction_x
-
     def set_sensors_capture_intervals(self, intervals):
         self.sensors_capture_intervals = intervals
 
