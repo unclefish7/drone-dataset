@@ -54,7 +54,7 @@ def main():
         settings.synchronous_mode = True
         settings.max_substep_delta_time = 0.02
         settings.max_substeps = 10  # 有效范围：1-16
-        settings.fixed_delta_seconds = 0.2  # 应小于 0.5
+        settings.fixed_delta_seconds = 0.1  # 应小于 0.5
         world.apply_settings(settings)
 
     total_sec = 30  # 模拟总时长（秒）
@@ -149,7 +149,6 @@ def main():
         # 创建第一个 UAV
         location1 = carla.Location(x=30, y=-20, z=50)
         uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
-        uav1.set_world_origin([10, 20, 50])
         uavs.append(uav1)
 
         # 如果需要，可以启用 UAV 移动
@@ -171,7 +170,7 @@ def main():
         # uavs.append(uav4)
 
         # ----------------- 开始模拟 -----------------
-        tick_interval = 1.0 / 30  # 渲染帧率（30 FPS）
+        tick_interval = 1.0 / 30  # 渲染帧率
         tick_count = 0
 
         while True:
