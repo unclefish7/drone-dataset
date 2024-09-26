@@ -34,9 +34,12 @@ class UAV:
         self.total_sensors = 6         # 总的传感器数量
 
         # 传感器采集间隔设置
-        self.ticks_per_capture = 5  # 每隔多少个 tick 采集一次数据
-        self.sensors_capture_intervals = self.ticks_per_capture * world.get_settings().fixed_delta_seconds
+        self.sensors_capture_intervals = 2.0  # 传感器采集间隔（秒）
+        self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
+
+        # 计数器，所有传感器都存好数据以后才进行下一个tick
+        self.if_saved = False
 
         # 移动设置
         self.move_enabled = False               # 移动开关，默认关闭
@@ -90,10 +93,6 @@ class UAV:
         # 设置激光雷达的变换
         lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
-        if self.dot_sensors_active:
-            lidar_sensor.listen(lambda data: self.process_dot_image(data))
-        # 存储激光雷达传感器
-        self.lidar_sensor = lidar_sensor
 
         # 创建垂直向下的 RGB 相机
         rgb_blueprint = self.world.get_blueprint_library().find('sensor.camera.rgb')
@@ -105,8 +104,15 @@ class UAV:
         # 设置相机的变换（位置和旋转）
         rgb_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
+
+        # 监听传感器数据
+        if self.dot_sensors_active:
+            lidar_sensor.listen(lambda data: self.process_dot_image(data))
+
         if self.rgb_sensors_active:
             rgb_sensor.listen(lambda data: self.process_image(data, "camera0"))
+        
+        self.lidar_sensor = lidar_sensor
         self.sensors.append(rgb_sensor)
 
         # 创建四个不同方向的 RGB 相机
@@ -137,11 +143,11 @@ class UAV:
         - direction：图像的方向标签。
         """
         # 生成文件名并保存图像
-        file_name = os.path.join(self.rootDir, f'{image.frame:06d}_{direction}.png')
+        file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}_{direction}.png')
         image.save_to_disk(file_name)
         # 增加数据计数器并检查是否需要保存参数
         self.sensors_data_counter += 1
-        self.check_and_save_yaml(image.frame)
+        self.check_and_save_yaml(image.timestamp)
 
     def process_dot_image(self, image):
         """
@@ -162,11 +168,11 @@ class UAV:
         # 创建点云并保存为 PCD 文件
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = os.path.join(self.rootDir, f'{image.frame:06d}.pcd')
+        pcd_file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}.pcd')
         o3d.io.write_point_cloud(pcd_file_name, pcd)
         # 增加数据计数器并检查是否需要保存参数
         self.sensors_data_counter += 1
-        self.check_and_save_yaml(image.frame)
+        self.check_and_save_yaml(image.timestamp)
 
     def get_intrinsics(self, sensor):
         """
@@ -260,7 +266,7 @@ class UAV:
                 }
             
             # 生成 YAML 文件的路径
-            yaml_file = os.path.join(self.rootDir, f'{frame:06d}.yaml')
+            yaml_file = os.path.join(self.rootDir, f'{frame:.6f}.yaml')
             
             # 将所有相机的参数写入一个 YAML 文件
             self.save_camera_params_to_yaml(camera_params, yaml_file)
