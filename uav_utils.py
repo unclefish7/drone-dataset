@@ -7,6 +7,11 @@ import time
 import math
 from scipy.spatial.transform import Rotation as R
 
+class RGBData:
+    def __init__(self, sensor_id, data):
+        self.sensor_id = sensor_id  # 传感器编号
+        self.data = data              # RGB数据
+
 class UAV:
     def __init__(self, world, location, uav_id, yaw_angle=0):
         """
@@ -32,6 +37,9 @@ class UAV:
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
         self.total_sensors = 6         # 总的传感器数量
+
+        self.rgb_data_list = []  # 存储 RGB 数据的列表
+        self.lidar_data = None
 
         # 传感器采集间隔设置
         self.sensors_capture_intervals = 2.0  # 传感器采集间隔（秒）
@@ -107,10 +115,10 @@ class UAV:
 
         # 监听传感器数据
         if self.dot_sensors_active:
-            lidar_sensor.listen(lambda data: self.process_dot_image(data))
+            lidar_sensor.listen(lambda data: self.process_lidar(data))
 
         if self.rgb_sensors_active:
-            rgb_sensor.listen(lambda data: self.process_image(data, "camera0"))
+            rgb_sensor.listen(lambda data: self.process_rgb("camera0", data))
         
         self.lidar_sensor = lidar_sensor
         self.sensors.append(rgb_sensor)
@@ -131,8 +139,19 @@ class UAV:
             )
             rgb_sensor = self.world.spawn_actor(rgb_blueprint, rgb_transform, self.static_actor)
             if self.rgb_sensors_active:
-                rgb_sensor.listen(lambda data, dir=direction: self.process_image(data, dir))
+                rgb_sensor.listen(lambda data, dir=direction: self.process_rgb(dir, data))
             self.sensors.append(rgb_sensor)
+
+    def process_lidar(self, data):
+        # 暂存LiDAR数据
+        self.lidar_data = data
+        # print(f"Lidar data received at frame {data.frame}")
+
+    def process_rgb(self, sensor_id, data):
+        # 暂存RGB数据
+        rgb_data = RGBData(sensor_id, data)
+        self.rgb_data_list.append(rgb_data)
+        # print(f"RGB data received at frame {data.frame}")
 
     def process_image(self, image, direction):
         """
@@ -145,9 +164,6 @@ class UAV:
         # 生成文件名并保存图像
         file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}_{direction}.png')
         image.save_to_disk(file_name)
-        # 增加数据计数器并检查是否需要保存参数
-        self.sensors_data_counter += 1
-        self.check_and_save_yaml(image.timestamp)
 
     def process_dot_image(self, image):
         """
@@ -170,11 +186,8 @@ class UAV:
         pcd.points = o3d.utility.Vector3dVector(points)
         pcd_file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}.pcd')
         o3d.io.write_point_cloud(pcd_file_name, pcd)
-        # 增加数据计数器并检查是否需要保存参数
-        self.sensors_data_counter += 1
-        self.check_and_save_yaml(image.timestamp)
 
-    def get_intrinsics(self, sensor):
+    def get_intrinsics(self):
         """
         计算传感器的内参矩阵。
 
@@ -184,9 +197,7 @@ class UAV:
         返回：
         - intrinsics：3x3 的 numpy 数组，表示内参矩阵。
         """
-        if not sensor.is_alive:
-            print(f"Sensor {sensor.id} has been destroyed.")
-            return None
+        sensor = self.sensors[0]
 
         fov = float(sensor.attributes['fov'])
         image_width = int(sensor.attributes['image_size_x'])
@@ -205,7 +216,7 @@ class UAV:
         
         return intrinsics
 
-    def get_sensor_extrinsics_and_pose(self, sensor):
+    def get_sensor_extrinsics_and_pose(self, data):
         """
         计算传感器相对于给定坐标系的外参矩阵和位姿。
 
@@ -217,10 +228,10 @@ class UAV:
         - pose：长度为 6 的 numpy 数组，包含 [x, y, z, roll, pitch, yaw]，角度以度为单位。
         """
 
-        sensor_transform = sensor.get_transform()
+        sensor_transform = data.transform
 
         # 计算传感器相对于给定坐标系的变换矩阵
-        extrinsics = np.array(sensor.get_transform().get_matrix())
+        extrinsics = np.array(sensor_transform.get_matrix())
         # 计算位姿
         x = sensor_transform.location.x
         y = sensor_transform.location.y
@@ -235,44 +246,36 @@ class UAV:
         
         return extrinsics, pose
 
-    def check_and_save_yaml(self, frame):
+    def check_and_save_yaml(self):
         """
-        检查是否已接收到所有传感器的数据，并保存参数到 YAML 文件。
-
-        参数：
-        - frame：当前帧号。
+        保存参数到 YAML 文件。
         """
-        if self.sensors_data_counter == self.total_sensors:
-            # 创建一个字典用于存储所有相机参数
-            camera_params = {}
+        # 创建一个字典用于存储所有相机参数
+        camera_params = {}
 
-            for idx, sensor in enumerate(self.sensors):
+        yaml_file = None
 
-                if not sensor.is_alive:
-                    print(f"Sensor {sensor.id} has been destroyed.")
-                    return None
-                
-                camera_id = f'camera{idx}'  # 动态生成相机 ID
+        for data in self.rgb_data_list:
+            
+            camera_id = data.sensor_id 
 
-                # 获取外参和位姿
-                extrinsics, pose = self.get_sensor_extrinsics_and_pose(sensor)
-                intrinsics = self.get_intrinsics(sensor)
+            # 获取外参和位姿
+            extrinsics, pose = self.get_sensor_extrinsics_and_pose(data.data)
+            intrinsics = self.get_intrinsics()
 
-                # 将相机的参数添加到字典中
-                camera_params[camera_id] = {
-                    'cords': pose.tolist(),
-                    'extrinsic': extrinsics.tolist(),
-                    'intrinsic': intrinsics.tolist()
-                }
+            # 将相机的参数添加到字典中
+            camera_params[camera_id] = {
+                'cords': pose.tolist(),
+                'extrinsic': extrinsics.tolist(),
+                'intrinsic': intrinsics.tolist()
+            }
             
             # 生成 YAML 文件的路径
-            yaml_file = os.path.join(self.rootDir, f'{frame:.6f}.yaml')
+            yaml_file = os.path.join(self.rootDir, f'{data.data.timestamp:.6f}.yaml')
             
-            # 将所有相机的参数写入一个 YAML 文件
+        # 将所有相机的参数写入一个 YAML 文件
+        if yaml_file is not None:
             self.save_camera_params_to_yaml(camera_params, yaml_file)
-
-            # 保存完毕后重置计数器
-            self.sensors_data_counter = 0
 
     def save_camera_params_to_yaml(self, camera_params, yaml_file):
         """
@@ -296,6 +299,23 @@ class UAV:
         except FileNotFoundError as e:
             print(f"Error: {e}")
 
+
+    def write_all_data(self):
+        """
+        写入所有传感器的数据。
+        """
+        # 写入 RGB 数据
+        self.check_and_save_yaml()
+
+        for rgb_data in self.rgb_data_list:
+            self.process_image(rgb_data.data, rgb_data.sensor_id)
+        self.rgb_data_list.clear()
+
+        # 写入激光雷达数据
+        if self.lidar_data is not None:
+            self.process_dot_image(self.lidar_data)
+            self.lidar_data = None
+
     def move(self):
         """
         控制无人机移动，并添加随机扰动。
@@ -317,7 +337,12 @@ class UAV:
     def update(self):
         """
         每次 tick 调用该方法来检查是否需要移动无人机。
+
+        每次 tick 会统一处理并写入所有传感器的数据。
         """
+        self.write_all_data()
+
+
         if self.move_enabled:
             self.tick_counter += 1
             if self.tick_counter >= self.ticks_per_capture:
