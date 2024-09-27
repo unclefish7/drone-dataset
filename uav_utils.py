@@ -304,7 +304,7 @@ class UAV:
 
         lidar_pose = self.get_lidar_pose(self.lidar_data)
 
-        camera_params['lidar'] = lidar_pose.tolist()
+        camera_params['lidar_pose'] = lidar_pose.tolist()
             
         # 将所有相机的参数写入一个 YAML 文件
         if yaml_file is not None:
