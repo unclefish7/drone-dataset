@@ -36,7 +36,7 @@ class UAV:
         self.lidar_sensor = None  # 激光雷达传感器
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
-        self.total_sensors = 6         # 总的传感器数量
+        self.total_sensors = 0
 
         self.rgb_data_list = []  # 存储 RGB 数据的列表
         self.lidar_data = None
@@ -57,6 +57,12 @@ class UAV:
         # 传感器激活标志
         self.rgb_sensors_active = True  # 是否激活 RGB 相机传感器
         self.dot_sensors_active = True  # 是否激活激光雷达传感器
+
+        if self.rgb_sensors_active:
+            self.total_sensors += 5
+
+        if self.dot_sensors_active:
+            self.total_sensors += 1
 
         # 生成无人机并附加传感器
         self.spawn_uav()
@@ -146,12 +152,20 @@ class UAV:
         # 暂存LiDAR数据
         self.lidar_data = data
         # print(f"Lidar data received at frame {data.frame}")
+        self.sensors_data_counter += 1
+        if self.sensors_data_counter == self.total_sensors:
+            self.sensors_data_counter = 0
+            self.write_all_data()
 
     def process_rgb(self, sensor_id, data):
         # 暂存RGB数据
         rgb_data = RGBData(sensor_id, data)
         self.rgb_data_list.append(rgb_data)
         # print(f"RGB data received at frame {data.frame}")
+        self.sensors_data_counter += 1
+        if self.sensors_data_counter == self.total_sensors:
+            self.sensors_data_counter = 0
+            self.write_all_data()
 
     def process_image(self, image, direction):
         """
@@ -245,6 +259,21 @@ class UAV:
         pose = np.array([x, y, z, roll, yaw, pitch])
         
         return extrinsics, pose
+    
+    def get_lidar_pose(self, data):
+        sensor_transform = data.transform
+
+        x = sensor_transform.location.x
+        y = sensor_transform.location.y
+        z = sensor_transform.location.z
+
+        roll = sensor_transform.rotation.roll
+        yaw = sensor_transform.rotation.yaw
+        pitch = sensor_transform.rotation.pitch
+
+        pose = np.array([x, y, z, roll, yaw, pitch])
+
+        return pose
 
     def check_and_save_yaml(self):
         """
@@ -270,8 +299,12 @@ class UAV:
                 'intrinsic': intrinsics.tolist()
             }
             
-            # 生成 YAML 文件的路径
-            yaml_file = os.path.join(self.rootDir, f'{data.data.timestamp:.6f}.yaml')
+        # 生成 YAML 文件的路径
+        yaml_file = os.path.join(self.rootDir, f'{self.lidar_data.timestamp:.6f}.yaml')
+
+        lidar_pose = self.get_lidar_pose(self.lidar_data)
+
+        camera_params['lidar'] = lidar_pose.tolist()
             
         # 将所有相机的参数写入一个 YAML 文件
         if yaml_file is not None:
@@ -340,7 +373,7 @@ class UAV:
 
         每次 tick 会统一处理并写入所有传感器的数据。
         """
-        self.write_all_data()
+        # self.write_all_data()
 
 
         if self.move_enabled:

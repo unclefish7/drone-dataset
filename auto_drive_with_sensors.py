@@ -179,8 +179,8 @@ def main():
             if synchronous_mode:
                 world.tick()
                 tick_count += 1
-                for uav in uavs:
-                    uav.update()
+                # for uav in uavs:
+                #     uav.update()
             else:
                 world.wait_for_tick()
 
