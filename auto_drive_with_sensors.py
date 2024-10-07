@@ -52,12 +52,12 @@ def main():
     if synchronous_mode:
         traffic_manager.set_synchronous_mode(True)
         settings.synchronous_mode = True
-        settings.max_substep_delta_time = 0.02
+        settings.max_substep_delta_time = 0.001
         settings.max_substeps = 10  # 有效范围：1-16
-        settings.fixed_delta_seconds = 0.1  # 应小于 0.5
+        settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 30  # 模拟总时长（秒）
+    total_sec = 10  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:

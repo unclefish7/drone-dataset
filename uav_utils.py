@@ -42,7 +42,7 @@ class UAV:
         self.lidar_data = None
 
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 2.0  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 0.5  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
@@ -176,7 +176,7 @@ class UAV:
         - direction：图像的方向标签。
         """
         # 生成文件名并保存图像
-        file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}_{direction}.png')
+        file_name = os.path.join(self.rootDir, f'{image.frame}_{direction}.png')
         image.save_to_disk(file_name)
 
     def process_dot_image(self, image):
@@ -198,7 +198,7 @@ class UAV:
         # 创建点云并保存为 PCD 文件
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}.pcd')
+        pcd_file_name = os.path.join(self.rootDir, f'{image.frame}.pcd')
         o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -300,7 +300,7 @@ class UAV:
             }
             
         # 生成 YAML 文件的路径
-        yaml_file = os.path.join(self.rootDir, f'{self.lidar_data.timestamp:.6f}.yaml')
+        yaml_file = os.path.join(self.rootDir, f'{self.lidar_data.frame}.yaml')
 
         lidar_pose = self.get_lidar_pose(self.lidar_data)
 
