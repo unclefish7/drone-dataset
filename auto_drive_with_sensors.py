@@ -7,6 +7,9 @@ import random  # 导入标准库的 random 模块
 import carla
 import numpy as np
 
+from queue import Queue
+from queue import Empty
+
 from uav_utils import UAV  # 导入自定义的 UAV 类
 
 
@@ -170,24 +173,17 @@ def main():
         # uavs.append(uav4)
 
         # ----------------- 开始模拟 -----------------
-        tick_interval = 1.0 / 30  # 渲染帧率
         tick_count = 0
 
         while True:
-            start_time = time.time()
 
             if synchronous_mode:
                 world.tick()
                 tick_count += 1
-                # for uav in uavs:
-                #     uav.update()
+                for uav in uavs:
+                    uav.update()
             else:
                 world.wait_for_tick()
-
-            # 控制 tick 频率
-            elapsed_time = time.time() - start_time
-            if elapsed_time < tick_interval:
-                time.sleep(tick_interval - elapsed_time)
 
             if tick_count > total_tick:
                 break
