@@ -6,6 +6,8 @@ import os
 import time
 import math
 from scipy.spatial.transform import Rotation as R
+from queue import Queue
+from queue import Empty
 
 class RGBData:
     def __init__(self, sensor_id, data):
@@ -36,13 +38,15 @@ class UAV:
         self.lidar_sensor = None  # 激光雷达传感器
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
-        self.total_sensors = 6         # 总的传感器数量
+        self.total_sensors = 0
 
         self.rgb_data_list = []  # 存储 RGB 数据的列表
         self.lidar_data = None
 
+        self.sensor_queue = Queue()  # 传感器数据队列
+
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 2.0  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 0.1  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
@@ -57,6 +61,12 @@ class UAV:
         # 传感器激活标志
         self.rgb_sensors_active = True  # 是否激活 RGB 相机传感器
         self.dot_sensors_active = True  # 是否激活激光雷达传感器
+
+        if self.rgb_sensors_active:
+            self.total_sensors += 5
+
+        if self.dot_sensors_active:
+            self.total_sensors += 1
 
         # 生成无人机并附加传感器
         self.spawn_uav()
@@ -144,14 +154,19 @@ class UAV:
 
     def process_lidar(self, data):
         # 暂存LiDAR数据
-        self.lidar_data = data
-        # print(f"Lidar data received at frame {data.frame}")
+        self.sensor_queue.put((data, "lidar"))
+        self.sensors_data_counter += 1
+        # if self.sensors_data_counter == self.total_sensors:
+        #     self.sensors_data_counter = 0
+        #     self.write_all_data()
 
     def process_rgb(self, sensor_id, data):
         # 暂存RGB数据
-        rgb_data = RGBData(sensor_id, data)
-        self.rgb_data_list.append(rgb_data)
-        # print(f"RGB data received at frame {data.frame}")
+        self.sensor_queue.put((data, sensor_id))
+        self.sensors_data_counter += 1
+        # if self.sensors_data_counter == self.total_sensors:
+        #     self.sensors_data_counter = 0
+        #     self.write_all_data()
 
     def process_image(self, image, direction):
         """
@@ -162,8 +177,9 @@ class UAV:
         - direction：图像的方向标签。
         """
         # 生成文件名并保存图像
-        file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}_{direction}.png')
-        image.save_to_disk(file_name)
+        if image != None:
+            file_name = os.path.join(self.rootDir, f'{image.frame}_{direction}.png')
+            image.save_to_disk(file_name)
 
     def process_dot_image(self, image):
         """
@@ -173,19 +189,20 @@ class UAV:
         - image：传感器返回的点云数据。
         """
         # 将原始数据转换为 numpy 数组
-        data = np.copy(np.frombuffer(image.raw_data, dtype=np.dtype('f4')))
-        data = np.reshape(data, (int(data.shape[0] / 4), 4))
+        if image != None:
+            data = np.copy(np.frombuffer(image.raw_data, dtype=np.dtype('f4')))
+            data = np.reshape(data, (int(data.shape[0] / 4), 4))
 
-        # 提取 XYZ 坐标
-        points = data[:, :3]
-        # 翻转 y 轴以匹配坐标系
-        points[:, 1] = -points[:, 1]
+            # 提取 XYZ 坐标
+            points = data[:, :3]
+            # 翻转 y 轴以匹配坐标系
+            points[:, 1] = -points[:, 1]
 
-        # 创建点云并保存为 PCD 文件
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
-        pcd_file_name = os.path.join(self.rootDir, f'{image.timestamp:.6f}.pcd')
-        o3d.io.write_point_cloud(pcd_file_name, pcd)
+            # 创建点云并保存为 PCD 文件
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            pcd_file_name = os.path.join(self.rootDir, f'{image.frame + 1}.pcd')
+            o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
         """
@@ -245,8 +262,23 @@ class UAV:
         pose = np.array([x, y, z, roll, yaw, pitch])
         
         return extrinsics, pose
+    
+    def get_lidar_pose(self, data):
+        sensor_transform = data.transform
 
-    def check_and_save_yaml(self):
+        x = sensor_transform.location.x
+        y = sensor_transform.location.y
+        z = sensor_transform.location.z
+
+        roll = sensor_transform.rotation.roll
+        yaw = sensor_transform.rotation.yaw
+        pitch = sensor_transform.rotation.pitch
+
+        pose = np.array([x, y, z, roll, yaw, pitch])
+
+        return pose
+
+    def check_and_save_all(self,vehicles):
         """
         保存参数到 YAML 文件。
         """
@@ -254,33 +286,61 @@ class UAV:
         camera_params = {}
 
         yaml_file = None
-        for data in self.rgb_data_list:
-            
-            camera_id = data.sensor_id 
 
-            # 获取外参和位姿
-            extrinsics, pose = self.get_sensor_extrinsics_and_pose(data.data)
-            intrinsics = self.get_intrinsics()
+        if self.sensors_data_counter < self.total_sensors:
+            return
 
-            # 将相机的参数添加到字典中
-            camera_params[camera_id] = {
-                'cords': pose.tolist(),
-                'extrinsic': extrinsics.tolist(),
-                'intrinsic': intrinsics.tolist()
-            }
-            
-            # 生成 YAML 文件的路径
-            yaml_file = os.path.join(self.rootDir, f'{data.data.timestamp:.6f}.yaml')
-            print('1:%s'%yaml_file)
-        print('-------------------------------------------------------------------------------------------------------')
-        print('2:%s'%yaml_file)
-        # 将所有相机的参数写入一个 YAML 文件
-        if yaml_file is not None:
-            print(1)
-            yaml_file=self.save_camera_params_to_yaml(camera_params, yaml_file)
-        print(yaml_file)
-        return yaml_file
+        try:
+            for _ in range(6):
+                data = self.sensor_queue.get(True, 1.0)
 
+                if data is None:
+                    continue
+                
+                if data[1] == "lidar":
+                    # 生成 YAML 文件的路径
+                    yaml_file = os.path.join(self.rootDir, f'{data[0].frame + 1}.yaml')
+
+                    lidar_pose = self.get_lidar_pose(data[0])
+
+                    camera_params['lidar_pose'] = lidar_pose.tolist()
+
+                    self.lidar_data=data[0]
+                    self.process_dot_image(data[0])
+
+
+
+
+
+                if data[1] != "lidar":
+                    camera_id = data[1]
+
+                    # 获取外参和位姿
+                    extrinsics, pose = self.get_sensor_extrinsics_and_pose(data[0])
+                    intrinsics = self.get_intrinsics()
+
+                    # 将相机的参数添加到字典中
+                    camera_params[camera_id] = {
+                        'cords': pose.tolist(),
+                        'extrinsic': extrinsics.tolist(),
+                        'intrinsic': intrinsics.tolist()
+                    }
+
+                    # 保存相机图像
+                    self.process_image(data[0], camera_id)
+                
+            # 将所有相机的参数写入一个 YAML 文件
+            if yaml_file is not None:
+                self.save_camera_params_to_yaml(camera_params, yaml_file)
+                self.add_vehicle_to_yaml(vehicles, self.lidar_data, yaml_file)
+
+                self.sensors_data_counter = 0
+
+
+
+
+        except Empty:
+            print("Queue is empty")
 
     def save_camera_params_to_yaml(self, camera_params, yaml_file):
         """
@@ -304,42 +364,8 @@ class UAV:
         except FileNotFoundError as e:
             print(f"Error: {e}")
 
-    def vehicle_in_lidar(slef, vehicle, lidar_points):
-        """
-        判断车辆是否被 LiDAR 传感器扫描到
-        :param vehicle: 车辆对象
-        :param lidar_points: LiDAR 传感器获取的点云数据
-        :return: 如果车辆被扫到则返回 True，否则返回 False
-        """
-        # 获取车辆的边界框
-        bounding_box = vehicle.bounding_box
 
-        # 计算边界框的中心和扩展
-        center = bounding_box.location
-        extent = bounding_box.extent
-        # 将中心位置转换为 numpy 数组
-        center_np = np.array([center.x, center.y, center.z])
-        # 定义边界框的最小和最大点
-        min_point = center_np - np.array([extent.x, extent.y, extent.z])
-        max_point = center_np + np.array([extent.x, extent.y, extent.z])
-        # 检查 LiDAR 点是否在边界框内
-        points = lidar_points[:, :3]
-        # points[:, 1] = -points[:, 1]
-
-        # for point in points:
-        #     if (min_point[0] <= point.x <= max_point[0] and
-        #             min_point[1] <= point.y <= max_point[1] and
-        #             min_point[2] <= point.z <= max_point[2]):
-        #         return True  # 找到一个点在边界框内，返回 True
-
-        for point in points:
-            if (min_point[0] <= point[0] <= max_point[0] and
-                    min_point[1] <= point[1] <= max_point[1] and
-                    min_point[2] <= point[2] <= max_point[2]):
-                return True  # 找到一个点在边界框内，返回 True
-        return False  # 没有点在边界框内，返回 False
-
-    def add_vehicle_to_yaml(self, vehicles_list, lidar_data, yaml_path):
+    def add_vehicle_to_yaml(self, vehicles_list, lidar_data, yaml_file):
         lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32)
         lidar_points = np.reshape(lidar_points, (int(lidar_points.shape[0] / 4), 4))
         # lidar_points = lidar_points.reshape((-1, 3))  # 每个点有 x, y, z
@@ -394,35 +420,50 @@ class UAV:
 
         print('vehicle')
         # 将车辆信息存入 YAML 文件
-        with open(yaml_path, 'r', encoding='utf-8') as file:
+        with open(yaml_file, 'r', encoding='utf-8') as file:
             # 读取现有数据
             existing_data = yaml.safe_load(file)
         existing_data['vehicles'] = vehicles_info
-        with open(yaml_path, 'w', encoding='utf-8') as file:
+
+        with open(yaml_file, 'w', encoding='utf-8') as file:
             yaml.dump(existing_data, file, allow_unicode=True, default_flow_style=False)
 
-        print("车辆信息已保存到 %s" % yaml_path)
+        print("车辆信息已保存到 %s" % yaml_file)
 
-    def write_all_data(self,vehicles_list):
+    def vehicle_in_lidar(slef, vehicle, lidar_points):
         """
-        写入所有传感器的数据。
+        判断车辆是否被 LiDAR 传感器扫描到
+        :param vehicle: 车辆对象
+        :param lidar_points: LiDAR 传感器获取的点云数据
+        :return: 如果车辆被扫到则返回 True，否则返回 False
         """
-        # 写入 RGB 数据
-        yaml_path=self.check_and_save_yaml()
+        # 获取车辆的边界框
+        bounding_box = vehicle.bounding_box
 
-        for rgb_data in self.rgb_data_list:
-            self.process_image(rgb_data.data, rgb_data.sensor_id)
-        self.rgb_data_list.clear()
+        # 计算边界框的中心和扩展
+        center = bounding_box.location
+        extent = bounding_box.extent
+        # 将中心位置转换为 numpy 数组
+        center_np = np.array([center.x, center.y, center.z])
+        # 定义边界框的最小和最大点
+        min_point = center_np - np.array([extent.x, extent.y, extent.z])
+        max_point = center_np + np.array([extent.x, extent.y, extent.z])
+        # 检查 LiDAR 点是否在边界框内
+        points = lidar_points[:, :3]
+        # points[:, 1] = -points[:, 1]
 
-        # 写入激光雷达数据
-        if self.lidar_data is not None:
-            self.process_dot_image(self.lidar_data)
-            if yaml_path is not None:
-                self.add_vehicle_to_yaml(vehicles_list,self.lidar_data,yaml_path)
-            self.lidar_data = None
+        # for point in points:
+        #     if (min_point[0] <= point.x <= max_point[0] and
+        #             min_point[1] <= point.y <= max_point[1] and
+        #             min_point[2] <= point.z <= max_point[2]):
+        #         return True  # 找到一个点在边界框内，返回 True
 
-
-
+        for point in points:
+            if (min_point[0] <= point[0] <= max_point[0] and
+                    min_point[1] <= point[1] <= max_point[1] and
+                    min_point[2] <= point[2] <= max_point[2]):
+                return True  # 找到一个点在边界框内，返回 True
+        return False  # 没有点在边界框内，返回 False
 
     def move(self):
         """
@@ -442,13 +483,13 @@ class UAV:
         new_location = self.static_actor.get_location() + delta_location_with_noise
         self.static_actor.set_location(new_location)
 
-    def update(self,vehicles_list):
+    def update(self,vehicles):
         """
         每次 tick 调用该方法来检查是否需要移动无人机。
 
         每次 tick 会统一处理并写入所有传感器的数据。
         """
-        self.write_all_data(vehicles_list)
+        self.check_and_save_all(vehicles)
 
 
         if self.move_enabled:
@@ -456,8 +497,6 @@ class UAV:
             if self.tick_counter >= self.ticks_per_capture:
                 self.tick_counter = 0
                 self.move()
-
-
 
     # 设置各种参数的函数
     def set_sensors_capture_intervals(self, intervals):
@@ -490,4 +529,3 @@ class UAV:
         # 销毁静态演员
         if self.static_actor is not None and self.static_actor.is_alive:
             self.static_actor.destroy()
-

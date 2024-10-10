@@ -7,6 +7,9 @@ import random  # 导入标准库的 random 模块
 import carla
 import numpy as np
 
+from queue import Queue
+from queue import Empty
+
 from uav_utils import UAV  # 导入自定义的 UAV 类
 
 
@@ -19,8 +22,6 @@ def get_actor_blueprints(world, filter_pattern):
     - filter_pattern：蓝图过滤器模式，例如 'vehicle.*'
     """
     return world.get_blueprint_library().filter(filter_pattern)
-
-
 
 
 def main():
@@ -54,12 +55,12 @@ def main():
     if synchronous_mode:
         traffic_manager.set_synchronous_mode(True)
         settings.synchronous_mode = True
-        settings.max_substep_delta_time = 0.02
+        settings.max_substep_delta_time = 0.001
         settings.max_substeps = 10  # 有效范围：1-16
-        settings.fixed_delta_seconds = 0.1  # 应小于 0.5
+        settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 30  # 模拟总时长（秒）
+    total_sec = 10  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -149,7 +150,7 @@ def main():
         uavs = []
 
         # 创建第一个 UAV
-        location1 = carla.Location(x=30, y=-20, z=50)
+        location1 = carla.Location(x=50, y=0, z=50)
         uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
         uavs.append(uav1)
 
@@ -159,39 +160,31 @@ def main():
         # uav1.set_delta_location(delta_location)
 
         # 可以按需添加更多 UAV
-        # location2 = carla.Location(x=50, y=50, z=50)
-        # uav2 = UAV(world, location2, uav_id=2, yaw_angle=90)
-        # uavs.append(uav2)
+        location2 = carla.Location(x=50, y=50, z=50)
+        uav2 = UAV(world, location2, uav_id=2, yaw_angle=0)
+        uavs.append(uav2)
 
-        # location3 = carla.Location(x=0, y=50, z=50)
-        # uav3 = UAV(world, location3, uav_id=3, yaw_angle=180)
-        # uavs.append(uav3)
+        location3 = carla.Location(x=0, y=50, z=50)
+        uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
+        uavs.append(uav3)
 
-        # location4 = carla.Location(x=0, y=0, z=50)
-        # uav4 = UAV(world, location4, uav_id=4, yaw_angle=270)
-        # uavs.append(uav4)
+        location4 = carla.Location(x=0, y=0, z=50)
+        uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
+        uavs.append(uav4)
 
         # ----------------- 开始模拟 -----------------
-        tick_interval = 1.0 / 30  # 渲染帧率
         tick_count = 0
 
         while True:
-            start_time = time.time()
 
             if synchronous_mode:
                 world.tick()
                 tick_count += 1
                 for uav in uavs:
-                    vehicles=world.get_actors().filter('vehicle.*')
+                    vehicles = world.get_actors().filter('vehicle.*')
                     uav.update(vehicles)
-
             else:
                 world.wait_for_tick()
-
-            # 控制 tick 频率
-            elapsed_time = time.time() - start_time
-            if elapsed_time < tick_interval:
-                time.sleep(tick_interval - elapsed_time)
 
             if tick_count > total_tick:
                 break
