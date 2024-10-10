@@ -150,7 +150,7 @@ def main():
         uavs = []
 
         # 创建第一个 UAV
-        location1 = carla.Location(x=30, y=-20, z=50)
+        location1 = carla.Location(x=50, y=0, z=50)
         uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
         uavs.append(uav1)
 
@@ -160,17 +160,17 @@ def main():
         # uav1.set_delta_location(delta_location)
 
         # 可以按需添加更多 UAV
-        # location2 = carla.Location(x=50, y=50, z=50)
-        # uav2 = UAV(world, location2, uav_id=2, yaw_angle=90)
-        # uavs.append(uav2)
+        location2 = carla.Location(x=50, y=50, z=50)
+        uav2 = UAV(world, location2, uav_id=2, yaw_angle=0)
+        uavs.append(uav2)
 
-        # location3 = carla.Location(x=0, y=50, z=50)
-        # uav3 = UAV(world, location3, uav_id=3, yaw_angle=180)
-        # uavs.append(uav3)
+        location3 = carla.Location(x=0, y=50, z=50)
+        uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
+        uavs.append(uav3)
 
-        # location4 = carla.Location(x=0, y=0, z=50)
-        # uav4 = UAV(world, location4, uav_id=4, yaw_angle=270)
-        # uavs.append(uav4)
+        location4 = carla.Location(x=0, y=0, z=50)
+        uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
+        uavs.append(uav4)
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0

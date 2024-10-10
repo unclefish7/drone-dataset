@@ -46,7 +46,7 @@ class UAV:
         self.sensor_queue = Queue()  # 传感器数据队列
 
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 0.5  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 0.1  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
@@ -201,7 +201,7 @@ class UAV:
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
-            pcd_file_name = os.path.join(self.rootDir, f'{image.frame}.pcd')
+            pcd_file_name = os.path.join(self.rootDir, f'{image.frame + 1}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -299,7 +299,7 @@ class UAV:
                 
                 if data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.rootDir, f'{data[0].frame}.yaml')
+                    yaml_file = os.path.join(self.rootDir, f'{data[0].frame + 1}.yaml')
 
                     lidar_pose = self.get_lidar_pose(data[0])
 
