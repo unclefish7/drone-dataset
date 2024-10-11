@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 10  # 模拟总时长（秒）
+    total_sec = 2  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
