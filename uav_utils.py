@@ -101,15 +101,15 @@ class UAV:
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
         lidar_blueprint.set_attribute("channels", '128')
         lidar_blueprint.set_attribute('range', '100.0')
-        lidar_blueprint.set_attribute('rotation_frequency', '10.0')
-        lidar_blueprint.set_attribute('horizontal_fov', '150.0')
+        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
         lidar_blueprint.set_attribute('upper_fov', '50.0')
-        lidar_blueprint.set_attribute('lower_fov', '-60.0')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
         lidar_blueprint.set_attribute('points_per_second', '1000000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
         # 设置激光雷达的变换
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-60))
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
 
         # 创建垂直向下的 RGB 相机
