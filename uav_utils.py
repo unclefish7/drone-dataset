@@ -99,13 +99,13 @@ class UAV:
 
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_blueprint.set_attribute("channels", '128')
+        lidar_blueprint.set_attribute("channels", '256')
         lidar_blueprint.set_attribute('range', '100.0')
         lidar_blueprint.set_attribute('rotation_frequency', '100.0')
         lidar_blueprint.set_attribute('horizontal_fov', '360.0')
         lidar_blueprint.set_attribute('upper_fov', '50.0')
         lidar_blueprint.set_attribute('lower_fov', '-90.0')
-        lidar_blueprint.set_attribute('points_per_second', '1000000')
+        lidar_blueprint.set_attribute('points_per_second', '10000000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
         # 设置激光雷达的变换
@@ -196,7 +196,7 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
             # 翻转 y 轴以匹配坐标系
-            points[:, 1] = -points[:, 1]
+            # points[:, 1] = -points[:, 1]
 
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()

@@ -16,13 +16,31 @@ def load_yaml(yaml_path):
 
 def load_point_cloud(pcd_path):
     pcd = o3d.io.read_point_cloud(pcd_path)
-    return np.asarray(pcd.points)
+    point_cloud = np.asarray(pcd.points)
+    return point_cloud
 
 def visualize_point_cloud(point_cloud):
     # 使用Open3D可视化点云
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(point_cloud)
+        # 将激光雷达位置添加为参考
     o3d.visualization.draw_geometries([pcd], window_name='Point Cloud Visualization')
+    print("Coordinate frame legend: X-axis (Red), Y-axis (Green), Z-axis (Blue)")
+
+def adjust_point_cloud_to_world(point_cloud, lidar_pose):
+    # 将点云转换到世界坐标系，考虑激光雷达的位姿
+    x, y, z, roll, yaw, pitch = lidar_pose
+    # 计算旋转矩阵
+    rotation = o3d.geometry.get_rotation_matrix_from_xyz([roll, pitch, yaw])
+    # 构造4x4的变换矩阵
+    transformation = np.eye(4)
+    transformation[:3, :3] = rotation
+    transformation[:3, 3] = [x, y, z]
+    # 将点云转换为齐次坐标
+    point_cloud_h = np.hstack((point_cloud, np.ones((point_cloud.shape[0], 1))))
+    # 应用变换矩阵
+    transformed_points = (transformation @ point_cloud_h.T).T
+    return transformed_points[:, :3]
 
 def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
     # 从yaml数据中提取内参和外参
@@ -77,19 +95,25 @@ for frame_file in os.listdir(DATASET_FOLDER):
         yaml_data = load_yaml(yaml_path)
         point_cloud = load_point_cloud(pcd_path)
 
-        # 可视化点云
-        visualize_point_cloud(point_cloud)
+        # 读取激光雷达的位姿
+        if 'lidar_pose' in yaml_data:
+            lidar_pose = yaml_data['lidar_pose']
+            # 调整点云基准点到世界坐标系
+            point_cloud_world = adjust_point_cloud_to_world(point_cloud, lidar_pose)
 
-        for cam_index in range(5):
-            image_path = os.path.join(DATASET_FOLDER, f"{frame}_camera{cam_index}.png")
-            try:
-                if f'camera{cam_index}' in yaml_data:
-                    camera_data = yaml_data[f'camera{cam_index}']
-                    if not validate_intrinsics_extrinsics(camera_data, image_path, point_cloud):
-                        print(f"Validation failed for {image_path}")
+            # 可视化交换后的点云
+            visualize_point_cloud(point_cloud_world)
+
+            for cam_index in range(5):
+                image_path = os.path.join(DATASET_FOLDER, f"{frame}_camera{cam_index}.png")
+                try:
+                    if f'camera{cam_index}' in yaml_data:
+                        camera_data = yaml_data[f'camera{cam_index}']
+                        if not validate_intrinsics_extrinsics(camera_data, image_path, point_cloud_world):
+                            print(f"Validation failed for {image_path}")
+                        else:
+                            print(f"Validation succeeded for {image_path}")
                     else:
-                        print(f"Validation succeeded for {image_path}")
-                else:
-                    print(f"Camera data for camera{cam_index} not found in {yaml_path}")
-            except FileNotFoundError as e:
-                print(e)
+                        print(f"Camera data for camera{cam_index} not found in {yaml_path}")
+                except FileNotFoundError as e:
+                    print(e)
