@@ -66,16 +66,19 @@ def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
     # 提取外参的旋转矩阵和平移向量
     rotation = extrinsics[:3, :3]
     translation = extrinsics[:3, 3]
+    translation = translation.reshape(3, 1)
     
     # 对点云进行旋转操作
-    cam_points = point_cloud @ rotation.T  # 点云乘以外参的旋转矩阵
+    cam_points = rotation @ point_cloud.T  # 点云乘以外参的旋转矩阵
     # 然后进行平移操作
     cam_points += translation  # 加上外参的平移向量
 
     # 第二步：内参变换（从相机坐标到像素坐标）
-    pixel_coords = (intrinsics @ cam_points.T).T  # 点云乘以内参矩阵
+    pixel_coords = intrinsics @ cam_points  # 点云乘以内参矩阵
     # 将像素坐标除以z值（归一化）
-    pixel_coords /= pixel_coords[:, 2].reshape(-1, 1)
+    pixel_coords /= pixel_coords[2, :].reshape(1, -1)  # 保持列向量操作，归一化
+    # 转置像素坐标回到原本的 (N, 3) 形状
+    pixel_coords = pixel_coords.T  # 现在是 (N, 3)，方便后续过滤操作
     # 过滤有效的像素坐标
     valid_mask = (pixel_coords[:, 0] >= 0) & (pixel_coords[:, 0] < img_width) & (pixel_coords[:, 1] >= 0) & (pixel_coords[:, 1] < img_height)
     if not np.any(valid_mask):
