@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 0.6  # 模拟总时长（秒）
+    total_sec = 20  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -99,7 +99,7 @@ def main():
 
         # ----------------- 交通设置 -----------------
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(0)      # 设置全局速度差异
+        traffic_manager.global_percentage_speed_difference(-1000)      # 设置全局速度差异
         traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         desired_vehicle_number = 100  # 想要生成的车辆数量

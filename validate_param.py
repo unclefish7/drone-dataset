@@ -32,15 +32,14 @@ def adjust_point_cloud_to_world(point_cloud, lidar_pose):
     x, y, z, roll, yaw, pitch = lidar_pose
     # 计算旋转矩阵
     rotation = o3d.geometry.get_rotation_matrix_from_xyz([roll, pitch, yaw])
-    # 构造4x4的变换矩阵
-    transformation = np.eye(4)
-    transformation[:3, :3] = rotation
-    transformation[:3, 3] = [x, y, z]
-    # 将点云转换为齐次坐标
-    point_cloud_h = np.hstack((point_cloud, np.ones((point_cloud.shape[0], 1))))
-    # 应用变换矩阵
-    transformed_points = (transformation @ point_cloud_h.T).T
-    return transformed_points[:, :3]
+    
+    # 先进行旋转
+    rotated_points = point_cloud @ rotation.T  # 点云乘以旋转矩阵
+    
+    # 再进行平移
+    translated_points = rotated_points + np.array([x, y, z])
+    
+    return translated_points
 
 def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
     # 从yaml数据中提取内参和外参
@@ -63,12 +62,19 @@ def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
         return False
 
     # 验证外参（通过点云数据的映射到图像进行验证）
-    # 将点云转换为齐次坐标
-    point_cloud_h = np.hstack((point_cloud, np.ones((point_cloud.shape[0], 1))))
-    # 使用外参将点云从世界坐标变换到相机坐标
-    cam_points = (extrinsics @ point_cloud_h.T).T
-    # 使用内参将相机坐标变换到像素坐标
-    pixel_coords = (intrinsics @ cam_points[:, :3].T).T
+    # 第一步：外参变换（从世界坐标到相机坐标）
+    # 提取外参的旋转矩阵和平移向量
+    rotation = extrinsics[:3, :3]
+    translation = extrinsics[:3, 3]
+    
+    # 对点云进行旋转操作
+    cam_points = point_cloud @ rotation.T  # 点云乘以外参的旋转矩阵
+    # 然后进行平移操作
+    cam_points += translation  # 加上外参的平移向量
+
+    # 第二步：内参变换（从相机坐标到像素坐标）
+    pixel_coords = (intrinsics @ cam_points.T).T  # 点云乘以内参矩阵
+    # 将像素坐标除以z值（归一化）
     pixel_coords /= pixel_coords[:, 2].reshape(-1, 1)
     # 过滤有效的像素坐标
     valid_mask = (pixel_coords[:, 0] >= 0) & (pixel_coords[:, 0] < img_width) & (pixel_coords[:, 1] >= 0) & (pixel_coords[:, 1] < img_height)
