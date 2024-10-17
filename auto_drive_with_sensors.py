@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 10  # 模拟总时长（秒）
+    total_sec = 20  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -99,7 +99,7 @@ def main():
 
         # ----------------- 交通设置 -----------------
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(-20)      # 设置全局速度差异
+        traffic_manager.global_percentage_speed_difference(-1000)      # 设置全局速度差异
         traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         desired_vehicle_number = 100  # 想要生成的车辆数量
@@ -150,27 +150,27 @@ def main():
         uavs = []
 
         # 创建第一个 UAV
-        location1 = carla.Location(x=50, y=0, z=50)
-        uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
-        uavs.append(uav1)
+        # location1 = carla.Location(x=50, y=0, z=50)
+        # uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
+        # uavs.append(uav1)
+
+        # # 可以按需添加更多 UAV
+        # location2 = carla.Location(x=50, y=50, z=50)
+        # uav2 = UAV(world, location2, uav_id=2, yaw_angle=0)
+        # uavs.append(uav2)
+
+        # location3 = carla.Location(x=0, y=50, z=50)
+        # uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
+        # uavs.append(uav3)
+
+        location4 = carla.Location(x=0, y=0, z=50)
+        uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
+        uavs.append(uav4)
 
         # 如果需要，可以启用 UAV 移动
         # delta_location = carla.Location(x=5, y=0, z=0)
         # uav1.enable_movement(True)
         # uav1.set_delta_location(delta_location)
-
-        # 可以按需添加更多 UAV
-        location2 = carla.Location(x=50, y=50, z=50)
-        uav2 = UAV(world, location2, uav_id=2, yaw_angle=0)
-        uavs.append(uav2)
-
-        location3 = carla.Location(x=0, y=50, z=50)
-        uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
-        uavs.append(uav3)
-
-        location4 = carla.Location(x=0, y=0, z=50)
-        uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
-        uavs.append(uav4)
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0

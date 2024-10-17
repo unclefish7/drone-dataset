@@ -46,7 +46,7 @@ class UAV:
         self.sensor_queue = Queue()  # 传感器数据队列
 
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 0.1  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 1000  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
@@ -99,17 +99,17 @@ class UAV:
 
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_blueprint.set_attribute("channels", '128')
+        lidar_blueprint.set_attribute("channels", '256')
         lidar_blueprint.set_attribute('range', '100.0')
-        lidar_blueprint.set_attribute('rotation_frequency', '10.0')
-        lidar_blueprint.set_attribute('horizontal_fov', '150.0')
+        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
         lidar_blueprint.set_attribute('upper_fov', '50.0')
-        lidar_blueprint.set_attribute('lower_fov', '-60.0')
-        lidar_blueprint.set_attribute('points_per_second', '1000000')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        lidar_blueprint.set_attribute('points_per_second', '10000000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
         # 设置激光雷达的变换
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-60))
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
 
         # 创建垂直向下的 RGB 相机
@@ -196,7 +196,7 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
             # 翻转 y 轴以匹配坐标系
-            points[:, 1] = -points[:, 1]
+            # points[:, 1] = -points[:, 1]
 
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
@@ -305,12 +305,8 @@ class UAV:
 
                     camera_params['lidar_pose'] = lidar_pose.tolist()
 
-                    self.lidar_data=data[0]
+                    self.lidar_data = data[0]
                     self.process_dot_image(data[0])
-
-
-
-
 
                 if data[1] != "lidar":
                     camera_id = data[1]
@@ -333,12 +329,7 @@ class UAV:
             if yaml_file is not None:
                 self.save_camera_params_to_yaml(camera_params, yaml_file)
                 self.add_vehicle_to_yaml(vehicles, self.lidar_data, yaml_file)
-
                 self.sensors_data_counter = 0
-
-
-
-
         except Empty:
             print("Queue is empty")
 
@@ -364,61 +355,74 @@ class UAV:
         except FileNotFoundError as e:
             print(f"Error: {e}")
 
-
     def add_vehicle_to_yaml(self, vehicles_list, lidar_data, yaml_file):
         lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32)
         lidar_points = np.reshape(lidar_points, (int(lidar_points.shape[0] / 4), 4))
         # lidar_points = lidar_points.reshape((-1, 3))  # 每个点有 x, y, z
-
+        # print(lidar_points)
         vehicles_info = {}
+        count=0
 
         for vehicle in vehicles_list:
-            # 检查车辆是否在lidar范围内
-            if self.vehicle_in_lidar(vehicle, lidar_points):
-                # 收集车辆信息
-                location = vehicle.get_location()
-                rotation = vehicle.get_transform().rotation
 
-                # # 计算车辆前轴位置
-                # # 通常车辆前轴在车长的一半处，这里用 1.0 表示前轴与车辆中心的距离
-                # # 可以根据具体车辆模型调整这个值
-                # front_axle_distance = 1.0  # 可以根据实际情况调整
-                # yaw_rad = math.radians(rotation.yaw)  # 将角度转换为弧度
-                #
-                # # 计算前轴位置
-                # front_axle_x = location.x + front_axle_distance * math.cos(yaw_rad)
-                # front_axle_y = location.y + front_axle_distance * math.sin(yaw_rad)
-                # front_axle_z = location.z  # z 坐标通常保持不变
+            # print(vehicle.get_location())
+            # print(vehicle.type_id)
+            # print("--------------------")
+            if(abs(vehicle.get_location().x-self.location.x)<50 and abs(vehicle.get_location().y-self.location.y)<50):
+                    # # 收集车辆信息
+                    # location = vehicle.get_location()
+                    # rotation = vehicle.get_transform().rotation
 
-                vehicle_info = {
-                    ('%s' % vehicle.id): [],
-                    'angle': [
-                        vehicle.get_transform().rotation.roll,
-                        vehicle.get_transform().rotation.yaw,
-                        vehicle.get_transform().rotation.pitch
-                    ],
-                    'center': [
-                        vehicle.bounding_box.location.x,
-                        vehicle.bounding_box.location.y,
-                        vehicle.bounding_box.location.z
-                    ],
-                    'extent': [
-                        vehicle.bounding_box.extent.x,
-                        vehicle.bounding_box.extent.y,
-                        vehicle.bounding_box.extent.z
-                    ],
-                    'location': [
-                        vehicle.get_location.x,
-                        vehicle.get_location.y,
-                        vehicle.get_location.z
-                    ],
-                    'speed': vehicle.get_velocity().length()  # 计算速度
-                }
+                    # # 计算车辆前轴位置
+                    # # 通常车辆前轴在车长的一半处，这里用 1.0 表示前轴与车辆中心的距离
+                    # # 可以根据具体车辆模型调整这个值
+                    # front_axle_distance = 1.0  # 可以根据实际情况调整
+                    # yaw_rad = math.radians(rotation.yaw)  # 将角度转换为弧度
+                    #
+                    # # 计算前轴位置
+                    # front_axle_x = location.x + front_axle_distance * math.cos(yaw_rad)
+                    # front_axle_y = location.y + front_axle_distance * math.sin(yaw_rad)
+                    # front_axle_z = location.z  # z 坐标通常保持不变
 
-                # 将信息存入字典
-                vehicles_info[vehicle.id] = vehicle_info
+                    vehicle_info = {
 
-        print('vehicle')
+                        'angle': [
+                            vehicle.get_transform().rotation.roll,
+                            vehicle.get_transform().rotation.yaw,
+                            vehicle.get_transform().rotation.pitch
+                        ],
+                        'center': [
+                            vehicle.bounding_box.location.x,
+                            vehicle.bounding_box.location.y,
+                            vehicle.bounding_box.location.z
+                        ],
+                        'extent': [
+                            vehicle.bounding_box.extent.x,
+                            vehicle.bounding_box.extent.y,
+                            vehicle.bounding_box.extent.z
+                        ],
+                        'location': [
+                            vehicle.get_location().x,
+                            vehicle.get_location().y,
+                            vehicle.get_location().z
+                        ],
+                        'speed': vehicle.get_velocity().length()  # 计算速度
+                    }
+
+                    # 将信息存入字典
+                    vehicles_info[vehicle.id] = vehicle_info
+                    count=count+1
+        print(count)
+
+
+
+
+        if self.uav_id == 2:
+            print(vehicles_info)
+            # print(vehicle)
+            # print("-----------------------------------------------")
+
+
         # 将车辆信息存入 YAML 文件
         with open(yaml_file, 'r', encoding='utf-8') as file:
             # 读取现有数据
@@ -428,42 +432,74 @@ class UAV:
         with open(yaml_file, 'w', encoding='utf-8') as file:
             yaml.dump(existing_data, file, allow_unicode=True, default_flow_style=False)
 
-        print("车辆信息已保存到 %s" % yaml_file)
+        # print("车辆信息已保存到 %s" % yaml_file)
 
-    def vehicle_in_lidar(slef, vehicle, lidar_points):
+    def vehicle_in_lidar(self,vehicle, lidar_points):
         """
         判断车辆是否被 LiDAR 传感器扫描到
         :param vehicle: 车辆对象
         :param lidar_points: LiDAR 传感器获取的点云数据
         :return: 如果车辆被扫到则返回 True，否则返回 False
         """
-        # 获取车辆的边界框
-        bounding_box = vehicle.bounding_box
 
-        # 计算边界框的中心和扩展
-        center = bounding_box.location
-        extent = bounding_box.extent
-        # 将中心位置转换为 numpy 数组
-        center_np = np.array([center.x, center.y, center.z])
-        # 定义边界框的最小和最大点
-        min_point = center_np - np.array([extent.x, extent.y, extent.z])
-        max_point = center_np + np.array([extent.x, extent.y, extent.z])
-        # 检查 LiDAR 点是否在边界框内
-        points = lidar_points[:, :3]
-        # points[:, 1] = -points[:, 1]
+        # points = np.frombuffer(lidar_points, dtype=np.float32)
+        # points = np.reshape(points, (int(points.shape[0] / 4), 4))
 
+        points=lidar_points
+
+
+        # 提取x, y, z坐标
+        x_points = points[:, 0]
+        y_points = points[:, 1]
+        z_points = points[:, 2]
+
+        # 判断点是否在车辆附近（使用车辆的位置判断）
+        vehicle_distance_threshold = 2  # 设置一个合理的距离阈值（单位：米）
+        distances = np.sqrt((x_points - vehicle.get_location().x) ** 2 + (y_points - vehicle.get_location().y) ** 2 + (
+                    z_points - vehicle.get_location().z) ** 2)
+
+        sorted_indices = np.argsort(distances)
+        print(sorted_indices[0])
+        # for i, distance in enumerate(distances):
+        #     if distance<100:
+        #         print(f"Point {i}: Distance = {distance}")
+
+        # 过滤在阈值范围内的点
+        points_in_range = points[distances < vehicle_distance_threshold]
+
+        if len(points_in_range) > 0:
+            print("okay")
+            return True
+        else:
+            return False
+
+        # # 获取车辆的边界框
+        # bounding_box = vehicle.bounding_box
+        #
+        # # 计算边界框的中心和扩展
+        # center = bounding_box.location
+        # extent = bounding_box.extent
+        # # 将中心位置转换为 numpy 数组
+        # center_np = np.array([center.x, center.y, center.z])
+        # # 定义边界框的最小和最大点
+        # min_point = center_np - np.array([extent.x, extent.y, extent.z])
+        # max_point = center_np + np.array([extent.x, extent.y, extent.z])
+        # # 检查 LiDAR 点是否在边界框内
+        # points = lidar_points[:, :3]
+        # # points[:, 1] = -points[:, 1]
+        #
+        # # for point in points:
+        # #     if (min_point[0] <= point.x <= max_point[0] and
+        # #             min_point[1] <= point.y <= max_point[1] and
+        # #             min_point[2] <= point.z <= max_point[2]):
+        # #         return True  # 找到一个点在边界框内，返回 True
+        #
         # for point in points:
-        #     if (min_point[0] <= point.x <= max_point[0] and
-        #             min_point[1] <= point.y <= max_point[1] and
-        #             min_point[2] <= point.z <= max_point[2]):
+        #     if (min_point[0] <= point[0] <= max_point[0] and
+        #             min_point[1] <= point[1] <= max_point[1] and
+        #             min_point[2] <= point[2] <= max_point[2]):
         #         return True  # 找到一个点在边界框内，返回 True
-
-        for point in points:
-            if (min_point[0] <= point[0] <= max_point[0] and
-                    min_point[1] <= point[1] <= max_point[1] and
-                    min_point[2] <= point[2] <= max_point[2]):
-                return True  # 找到一个点在边界框内，返回 True
-        return False  # 没有点在边界框内，返回 False
+        # return False  # 没有点在边界框内，返回 False
 
     def move(self):
         """
