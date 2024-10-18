@@ -142,9 +142,13 @@ def main():
                 print(response.error)
             else:
                 vehicles_list.append(response.actor_id)
+                vehicle = world.get_actor(response.actor_id)
+
+                # 或者通过traffic_manager为每辆车单独设置速度百分比差异
+                # traffic_manager.vehicle_percentage_speed_difference(vehicle, random.uniform(-1000, -1000))  # 车辆速度限制范围
 
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(50)      # 设置全局速度差异
+        traffic_manager.global_percentage_speed_difference(0)      # 设置全局速度差异
         traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         # ----------------- UAV 设置 -----------------

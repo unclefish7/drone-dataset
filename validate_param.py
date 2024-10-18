@@ -64,7 +64,9 @@ def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
     # 验证外参（通过点云数据的映射到图像进行验证）
     # 第一步：外参变换（从世界坐标到相机坐标）
     # 提取外参的旋转矩阵和平移向量
-    rotation = extrinsics[:3, :3]
+    x, y, z, roll, yaw, pitch = lidar_pose
+    # 计算旋转矩阵
+    rotation = o3d.geometry.get_rotation_matrix_from_xyz([roll, pitch, yaw])
     translation = extrinsics[:3, 3]
     translation = translation.reshape(3, 1)
     
