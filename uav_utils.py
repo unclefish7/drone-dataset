@@ -31,7 +31,7 @@ class UAV:
         self.uav_id = uav_id  # 无人机的唯一 ID
 
         # 数据保存的根目录
-        self.rootDir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
+        self.rootDir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
 
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
@@ -278,7 +278,7 @@ class UAV:
 
         return pose
 
-    def check_and_save_all(self,vehicles):
+    def check_and_save_all(self, vehicles):
         """
         保存参数到 YAML 文件。
         """
@@ -301,11 +301,12 @@ class UAV:
                     # 生成 YAML 文件的路径
                     yaml_file = os.path.join(self.rootDir, f'{data[0].frame + 1}.yaml')
 
+                    self.lidar_data = data[0]
+
                     lidar_pose = self.get_lidar_pose(data[0])
 
                     camera_params['lidar_pose'] = lidar_pose.tolist()
 
-                    self.lidar_data = data[0]
                     self.process_dot_image(data[0])
 
                 if data[1] != "lidar":

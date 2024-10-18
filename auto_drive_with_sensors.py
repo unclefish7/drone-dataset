@@ -98,9 +98,6 @@ def main():
         world.set_weather(weather_presets[selected_weather])
 
         # ----------------- 交通设置 -----------------
-        traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(-1000)      # 设置全局速度差异
-        traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         desired_vehicle_number = 100  # 想要生成的车辆数量
 
@@ -145,6 +142,10 @@ def main():
                 print(response.error)
             else:
                 vehicles_list.append(response.actor_id)
+
+        traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
+        traffic_manager.global_percentage_speed_difference(50)      # 设置全局速度差异
+        traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         # ----------------- UAV 设置 -----------------
         uavs = []
