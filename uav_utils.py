@@ -62,11 +62,15 @@ class UAV:
         # 传感器激活标志
         self.rgb_sensors_active = True  # 是否激活 RGB 相机传感器
         self.dot_sensors_active = True  # 是否激活激光雷达传感器
+        self.segmentation_sensor_active = True  # 是否激活语义分割传感器
 
         if self.rgb_sensors_active:
             self.total_sensors += 5
 
         if self.dot_sensors_active:
+            self.total_sensors += 1
+
+        if self.segmentation_sensor_active:
             self.total_sensors += 1
 
         # 生成无人机并附加传感器
@@ -106,7 +110,8 @@ class UAV:
 
         seg_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
         seg_sensor = self.world.spawn_actor(seg_blueprint, seg_transform, self.static_actor)
-        seg_sensor.listen(lambda data: self.process_segmentation(data))
+        if self.segmentation_sensor_active:
+            seg_sensor.listen(lambda data: self.process_segmentation(data))
 
         self.semantic_segmentation_sensor = seg_sensor
 
@@ -176,6 +181,12 @@ class UAV:
         self.sensors_data_counter += 1
 
     def process_segmentation(self, data):
+        # 暂存语义分割数据
+        self.sensor_queue.put((data, "segmentation"))
+        self.sensors_data_counter += 1
+
+
+    def save_segmentation(self, data, frame):
         """
         处理并保存语义分割图像数据。
 
@@ -184,10 +195,10 @@ class UAV:
         """
         # 生成文件名并保存图像
         if data != None:
-            file_name = os.path.join(self.rootDir, f'{data.frame}_segmentation.png')
+            file_name = os.path.join(self.rootDir, f'{frame}_segmentation.png')
             data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
-    def process_image(self, image, direction):
+    def save_image(self, image, direction, frame):
         """
         处理并保存传感器的图像数据。
 
@@ -197,10 +208,10 @@ class UAV:
         """
         # 生成文件名并保存图像
         if image != None:
-            file_name = os.path.join(self.rootDir, f'{image.frame}_{direction}.png')
+            file_name = os.path.join(self.rootDir, f'{frame}_{direction}.png')
             image.save_to_disk(file_name)
 
-    def process_dot_image(self, image):
+    def save_lidar(self, image, frame):
         """
         处理并保存激光雷达的点云数据。
 
@@ -220,7 +231,7 @@ class UAV:
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
-            pcd_file_name = os.path.join(self.rootDir, f'{image.frame + 1}.pcd')
+            pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -352,15 +363,24 @@ class UAV:
             return
 
         try:
+            data_list = list(self.sensor_queue.queue)
+            max_frame = 0
+            for i in data_list:
+                if i[0].frame > max_frame:
+                    max_frame = i[0].frame
+
             for _ in range(6):
                 data = self.sensor_queue.get(True, 1.0)
 
                 if data is None:
                     continue
+
+                if data[1] == "segmentation":
+                    self.save_segmentation(data[0], max_frame)
                 
-                if data[1] == "lidar":
+                elif data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.rootDir, f'{data[0].frame + 1}.yaml')
+                    yaml_file = os.path.join(self.rootDir, f'{max_frame}.yaml')
 
                     self.lidar_data = data[0]
 
@@ -368,9 +388,9 @@ class UAV:
 
                     camera_params['lidar_pose'] = lidar_pose.tolist()
 
-                    self.process_dot_image(data[0])
+                    self.save_lidar(data[0], max_frame)
 
-                if data[1] != "lidar":
+                elif data[1] != "lidar":
                     camera_id = data[1]
 
                     # 获取外参和位姿
@@ -385,7 +405,7 @@ class UAV:
                     }
 
                     # 保存相机图像
-                    self.process_image(data[0], camera_id)
+                    self.save_image(data[0], camera_id, max_frame)
                 
             # 将所有相机的参数写入一个 YAML 文件
             if yaml_file is not None:
