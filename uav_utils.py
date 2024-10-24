@@ -196,7 +196,7 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
             # 翻转 y 轴以匹配坐标系
-            # points[:, 1] = -points[:, 1]
+            points[:, 1] = -points[:, 1]
 
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
@@ -238,7 +238,7 @@ class UAV:
         计算传感器相对于给定坐标系的外参矩阵和位姿。
 
         参数：
-        - T_sensor_to_world：传感器相对于世界坐标系的变换矩阵。
+        - data：包含传感器位姿信息的对象。
 
         返回：
         - extrinsics：4x4 的 numpy 数组，表示外参矩阵。
@@ -247,31 +247,66 @@ class UAV:
 
         sensor_transform = data.transform
 
-        # 计算传感器相对于给定坐标系的变换矩阵
-        extrinsics = np.array(sensor_transform.get_matrix())
         # 计算位姿
         x = sensor_transform.location.x
-        y = sensor_transform.location.y
+        y = -sensor_transform.location.y  # Y 轴取反
         z = sensor_transform.location.z
 
-        # 提取旋转（以度为单位）
-        roll = sensor_transform.rotation.roll
-        yaw = sensor_transform.rotation.yaw
-        pitch = sensor_transform.rotation.pitch
+        # 提取旋转（以度为单位），并根据 Y 轴取反进行调整
+        roll_deg = -sensor_transform.rotation.roll   # Roll 角取反
+        yaw_deg = -sensor_transform.rotation.yaw     # Yaw 角取反
+        pitch_deg = sensor_transform.rotation.pitch  # Pitch 角不变
 
-        pose = np.array([x, y, z, roll, yaw, pitch])
-        
+        pose = np.array([x, y, z, roll_deg, yaw_deg, pitch_deg])
+
+        # 将角度从度转换为弧度
+        roll = np.deg2rad(roll_deg)
+        pitch = np.deg2rad(pitch_deg)
+        yaw = np.deg2rad(yaw_deg)
+
+        # 计算旋转矩阵
+        # 使用 ZYX 顺序（Yaw-Pitch-Roll），即先绕 Z 轴旋转（yaw），再绕 Y 轴旋转（pitch），再绕 X 轴旋转（roll）
+
+        # 旋转矩阵绕 X 轴（Roll）
+        R_x = np.array([
+            [1, 0, 0],
+            [0, np.cos(roll), -np.sin(roll)],
+            [0, np.sin(roll), np.cos(roll)]
+        ])
+
+        # 旋转矩阵绕 Y 轴（Pitch）
+        R_y = np.array([
+            [np.cos(pitch), 0, np.sin(pitch)],
+            [0, 1, 0],
+            [-np.sin(pitch), 0, np.cos(pitch)]
+        ])
+
+        # 旋转矩阵绕 Z 轴（Yaw）
+        R_z = np.array([
+            [np.cos(yaw), -np.sin(yaw), 0],
+            [np.sin(yaw), np.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+
+        # 总的旋转矩阵 R = R_z * R_y * R_x
+        R = R_z @ R_y @ R_x
+
+        # 构建 4x4 外参矩阵
+        extrinsics = np.eye(4)
+        extrinsics[:3, :3] = R
+        extrinsics[:3, 3] = [x, y, z]
+
         return extrinsics, pose
     
     def get_lidar_pose(self, data):
         sensor_transform = data.transform
 
         x = sensor_transform.location.x
-        y = sensor_transform.location.y
+        y = -sensor_transform.location.y
         z = sensor_transform.location.z
 
-        roll = sensor_transform.rotation.roll
-        yaw = sensor_transform.rotation.yaw
+        roll = -sensor_transform.rotation.roll
+        yaw = -sensor_transform.rotation.yaw
         pitch = sensor_transform.rotation.pitch
 
         pose = np.array([x, y, z, roll, yaw, pitch])
@@ -388,13 +423,13 @@ class UAV:
                     vehicle_info = {
 
                         'angle': [
-                            vehicle.get_transform().rotation.roll,
-                            vehicle.get_transform().rotation.yaw,
+                            -vehicle.get_transform().rotation.roll,
+                            -vehicle.get_transform().rotation.yaw,
                             vehicle.get_transform().rotation.pitch
                         ],
                         'center': [
                             vehicle.bounding_box.location.x,
-                            vehicle.bounding_box.location.y,
+                            -vehicle.bounding_box.location.y,
                             vehicle.bounding_box.location.z
                         ],
                         'extent': [
@@ -404,7 +439,7 @@ class UAV:
                         ],
                         'location': [
                             vehicle.get_location().x,
-                            vehicle.get_location().y,
+                            -vehicle.get_location().y,
                             vehicle.get_location().z
                         ],
                         'speed': vehicle.get_velocity().length()  # 计算速度

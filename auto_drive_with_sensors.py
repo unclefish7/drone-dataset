@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 20  # 模拟总时长（秒）
+    total_sec = 5  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -168,7 +168,7 @@ def main():
         # uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
         # uavs.append(uav3)
 
-        location4 = carla.Location(x=0, y=0, z=50)
+        location4 = carla.Location(x=0, y=-50, z=50)
         uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
         uavs.append(uav4)
 
