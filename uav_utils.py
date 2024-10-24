@@ -220,9 +220,16 @@ class UAV:
         image_width = int(sensor.attributes['image_size_x'])
         image_height = int(sensor.attributes['image_size_y'])
 
+        # 将 FOV 从度转换为弧度
+        fov_rad = fov * np.pi / 180.0  # 水平视场角（弧度）
+
+        # 计算垂直视场角
+        aspect_ratio = image_height / image_width
+        vertical_fov_rad = 2.0 * np.arctan(np.tan(fov_rad / 2.0) * aspect_ratio)
+
         # 计算焦距
-        fx = image_width / (2.0 * np.tan(fov * np.pi / 360.0))
-        fy = image_height / (2.0 * np.tan(fov * np.pi / 360.0))
+        fx = image_width / (2.0 * np.tan(fov_rad / 2.0))
+        fy = image_height / (2.0 * np.tan(vertical_fov_rad / 2.0))
 
         # 构造内参矩阵
         intrinsics = np.array([
