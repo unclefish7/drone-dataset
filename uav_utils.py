@@ -36,6 +36,7 @@ class UAV:
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
         self.lidar_sensor = None  # 激光雷达传感器
+        self.semantic_segmentation_sensor = None
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
         self.total_sensors = 0
@@ -97,6 +98,18 @@ class UAV:
         spawn_point = carla.Transform(self.location, carla.Rotation(yaw=self.yaw_angle))
         self.static_actor = self.world.spawn_actor(static_blueprint, spawn_point)
 
+        seg_blueprint = self.world.get_blueprint_library().find('sensor.camera.semantic_segmentation')
+        seg_blueprint.set_attribute('image_size_x', str(image_size_x))
+        seg_blueprint.set_attribute('image_size_y', str(image_size_y))
+        seg_blueprint.set_attribute('fov', str(fov))
+        seg_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+
+        seg_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+        seg_sensor = self.world.spawn_actor(seg_blueprint, seg_transform, self.static_actor)
+        seg_sensor.listen(lambda data: self.process_segmentation(data))
+
+        self.semantic_segmentation_sensor = seg_sensor
+
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
         lidar_blueprint.set_attribute("channels", '256')
@@ -156,17 +169,23 @@ class UAV:
         # 暂存LiDAR数据
         self.sensor_queue.put((data, "lidar"))
         self.sensors_data_counter += 1
-        # if self.sensors_data_counter == self.total_sensors:
-        #     self.sensors_data_counter = 0
-        #     self.write_all_data()
 
     def process_rgb(self, sensor_id, data):
         # 暂存RGB数据
         self.sensor_queue.put((data, sensor_id))
         self.sensors_data_counter += 1
-        # if self.sensors_data_counter == self.total_sensors:
-        #     self.sensors_data_counter = 0
-        #     self.write_all_data()
+
+    def process_segmentation(self, data):
+        """
+        处理并保存语义分割图像数据。
+
+        参数：
+        - data：传感器返回的语义分割图像数据。
+        """
+        # 生成文件名并保存图像
+        if data != None:
+            file_name = os.path.join(self.rootDir, f'{data.frame}_segmentation.png')
+            data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
     def process_image(self, image, direction):
         """
