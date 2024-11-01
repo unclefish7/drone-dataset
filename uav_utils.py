@@ -331,7 +331,7 @@ class UAV:
         # 构建 4x4 外参矩阵
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = R
-        extrinsics[:3, 3] = [x, y, z]
+        extrinsics[:3, 3] = - R @ np.array([x, y, z])
 
         return extrinsics, pose
     
