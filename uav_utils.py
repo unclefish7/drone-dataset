@@ -31,11 +31,12 @@ class UAV:
         self.uav_id = uav_id  # 无人机的唯一 ID
 
         # 数据保存的根目录
-        self.rootDir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
+        self.rootDir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
 
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
         self.lidar_sensor = None  # 激光雷达传感器
+        self.semantic_segmentation_sensor = None
 
         self.sensors_data_counter = 0  # 已接收到的传感器数据计数
         self.total_sensors = 0
@@ -46,7 +47,7 @@ class UAV:
         self.sensor_queue = Queue()  # 传感器数据队列
 
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 1000  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 1  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
@@ -61,11 +62,15 @@ class UAV:
         # 传感器激活标志
         self.rgb_sensors_active = True  # 是否激活 RGB 相机传感器
         self.dot_sensors_active = True  # 是否激活激光雷达传感器
+        self.segmentation_sensor_active = True  # 是否激活语义分割传感器
 
         if self.rgb_sensors_active:
             self.total_sensors += 5
 
         if self.dot_sensors_active:
+            self.total_sensors += 1
+
+        if self.segmentation_sensor_active:
             self.total_sensors += 1
 
         # 生成无人机并附加传感器
@@ -97,15 +102,31 @@ class UAV:
         spawn_point = carla.Transform(self.location, carla.Rotation(yaw=self.yaw_angle))
         self.static_actor = self.world.spawn_actor(static_blueprint, spawn_point)
 
+        seg_blueprint = self.world.get_blueprint_library().find('sensor.camera.semantic_segmentation')
+        seg_blueprint.set_attribute('image_size_x', str(image_size_x))
+        seg_blueprint.set_attribute('image_size_y', str(image_size_y))
+        seg_blueprint.set_attribute('fov', str(fov))
+        seg_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+
+        seg_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+        seg_sensor = self.world.spawn_actor(seg_blueprint, seg_transform, self.static_actor)
+        if self.segmentation_sensor_active:
+            seg_sensor.listen(lambda data: self.process_segmentation(data))
+
+        self.semantic_segmentation_sensor = seg_sensor
+
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_blueprint.set_attribute("channels", '256')
+        lidar_blueprint.set_attribute("channels", '128')
+        # lidar_blueprint.set_attribute("channels", '256')
         lidar_blueprint.set_attribute('range', '100.0')
         lidar_blueprint.set_attribute('rotation_frequency', '100.0')
         lidar_blueprint.set_attribute('horizontal_fov', '360.0')
-        lidar_blueprint.set_attribute('upper_fov', '50.0')
+        # lidar_blueprint.set_attribute('upper_fov', '50.0')
+        lidar_blueprint.set_attribute('upper_fov', '-30.0')
         lidar_blueprint.set_attribute('lower_fov', '-90.0')
-        lidar_blueprint.set_attribute('points_per_second', '10000000')
+        lidar_blueprint.set_attribute('points_per_second', '5000000')
+        # lidar_blueprint.set_attribute('points_per_second', '10000000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
 
         # 设置激光雷达的变换
@@ -156,19 +177,31 @@ class UAV:
         # 暂存LiDAR数据
         self.sensor_queue.put((data, "lidar"))
         self.sensors_data_counter += 1
-        # if self.sensors_data_counter == self.total_sensors:
-        #     self.sensors_data_counter = 0
-        #     self.write_all_data()
 
     def process_rgb(self, sensor_id, data):
         # 暂存RGB数据
         self.sensor_queue.put((data, sensor_id))
         self.sensors_data_counter += 1
-        # if self.sensors_data_counter == self.total_sensors:
-        #     self.sensors_data_counter = 0
-        #     self.write_all_data()
 
-    def process_image(self, image, direction):
+    def process_segmentation(self, data):
+        # 暂存语义分割数据
+        self.sensor_queue.put((data, "segmentation"))
+        self.sensors_data_counter += 1
+
+
+    def save_segmentation(self, data, frame):
+        """
+        处理并保存语义分割图像数据。
+
+        参数：
+        - data：传感器返回的语义分割图像数据。
+        """
+        # 生成文件名并保存图像
+        if data != None:
+            file_name = os.path.join(self.rootDir, f'{frame}_segmentation.png')
+            data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
+
+    def save_image(self, image, direction, frame):
         """
         处理并保存传感器的图像数据。
 
@@ -178,10 +211,10 @@ class UAV:
         """
         # 生成文件名并保存图像
         if image != None:
-            file_name = os.path.join(self.rootDir, f'{image.frame}_{direction}.png')
+            file_name = os.path.join(self.rootDir, f'{frame}_{direction}.png')
             image.save_to_disk(file_name)
 
-    def process_dot_image(self, image):
+    def save_lidar(self, image, frame):
         """
         处理并保存激光雷达的点云数据。
 
@@ -196,12 +229,12 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
             # 翻转 y 轴以匹配坐标系
-            # points[:, 1] = -points[:, 1]
+            points[:, 1] = -points[:, 1]
 
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
-            pcd_file_name = os.path.join(self.rootDir, f'{image.frame + 1}.pcd')
+            pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -220,9 +253,16 @@ class UAV:
         image_width = int(sensor.attributes['image_size_x'])
         image_height = int(sensor.attributes['image_size_y'])
 
+        # 将 FOV 从度转换为弧度
+        fov_rad = fov * np.pi / 180.0  # 水平视场角（弧度）
+
+        # 计算垂直视场角
+        aspect_ratio = image_height / image_width
+        vertical_fov_rad = 2.0 * np.arctan(np.tan(fov_rad / 2.0) * aspect_ratio)
+
         # 计算焦距
-        fx = image_width / (2.0 * np.tan(fov * np.pi / 360.0))
-        fy = image_height / (2.0 * np.tan(fov * np.pi / 360.0))
+        fx = image_width / (2.0 * np.tan(fov_rad / 2.0))
+        fy = image_height / (2.0 * np.tan(vertical_fov_rad / 2.0))
 
         # 构造内参矩阵
         intrinsics = np.array([
@@ -238,7 +278,7 @@ class UAV:
         计算传感器相对于给定坐标系的外参矩阵和位姿。
 
         参数：
-        - T_sensor_to_world：传感器相对于世界坐标系的变换矩阵。
+        - data：包含传感器位姿信息的对象。
 
         返回：
         - extrinsics：4x4 的 numpy 数组，表示外参矩阵。
@@ -247,31 +287,66 @@ class UAV:
 
         sensor_transform = data.transform
 
-        # 计算传感器相对于给定坐标系的变换矩阵
-        extrinsics = np.array(sensor_transform.get_matrix())
         # 计算位姿
         x = sensor_transform.location.x
-        y = sensor_transform.location.y
+        y = -sensor_transform.location.y  # Y 轴取反
         z = sensor_transform.location.z
 
-        # 提取旋转（以度为单位）
-        roll = sensor_transform.rotation.roll
-        yaw = sensor_transform.rotation.yaw
-        pitch = sensor_transform.rotation.pitch
+        # 提取旋转（以度为单位），并根据 Y 轴取反进行调整
+        roll_deg = -sensor_transform.rotation.roll   # Roll 角取反
+        yaw_deg = -sensor_transform.rotation.yaw     # Yaw 角取反
+        pitch_deg = sensor_transform.rotation.pitch  # Pitch 角不变
 
-        pose = np.array([x, y, z, roll, yaw, pitch])
-        
+        pose = np.array([x, y, z, roll_deg, yaw_deg, pitch_deg])
+
+        # 将角度从度转换为弧度
+        roll = np.deg2rad(roll_deg)
+        pitch = np.deg2rad(pitch_deg)
+        yaw = np.deg2rad(yaw_deg)
+
+        # 计算旋转矩阵
+        # 使用 ZYX 顺序（Yaw-Pitch-Roll），即先绕 Z 轴旋转（yaw），再绕 Y 轴旋转（pitch），再绕 X 轴旋转（roll）
+
+        # 旋转矩阵绕 X 轴（Roll）
+        R_x = np.array([
+            [1, 0, 0],
+            [0, np.cos(roll), -np.sin(roll)],
+            [0, np.sin(roll), np.cos(roll)]
+        ])
+
+        # 旋转矩阵绕 Y 轴（Pitch）
+        R_y = np.array([
+            [np.cos(pitch), 0, np.sin(pitch)],
+            [0, 1, 0],
+            [-np.sin(pitch), 0, np.cos(pitch)]
+        ])
+
+        # 旋转矩阵绕 Z 轴（Yaw）
+        R_z = np.array([
+            [np.cos(yaw), -np.sin(yaw), 0],
+            [np.sin(yaw), np.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+
+        # 总的旋转矩阵 R = R_z * R_y * R_x
+        R = R_z @ R_y @ R_x
+
+        # 构建 4x4 外参矩阵
+        extrinsics = np.eye(4)
+        extrinsics[:3, :3] = R
+        extrinsics[:3, 3] = [x, y, z]
+
         return extrinsics, pose
     
     def get_lidar_pose(self, data):
         sensor_transform = data.transform
 
         x = sensor_transform.location.x
-        y = sensor_transform.location.y
+        y = -sensor_transform.location.y
         z = sensor_transform.location.z
 
-        roll = sensor_transform.rotation.roll
-        yaw = sensor_transform.rotation.yaw
+        roll = -sensor_transform.rotation.roll
+        yaw = -sensor_transform.rotation.yaw
         pitch = sensor_transform.rotation.pitch
 
         pose = np.array([x, y, z, roll, yaw, pitch])
@@ -291,15 +366,24 @@ class UAV:
             return
 
         try:
+            data_list = list(self.sensor_queue.queue)
+            max_frame = 0
+            for i in data_list:
+                if i[0].frame > max_frame:
+                    max_frame = i[0].frame
+
             for _ in range(6):
                 data = self.sensor_queue.get(True, 1.0)
 
                 if data is None:
                     continue
+
+                if data[1] == "segmentation":
+                    self.save_segmentation(data[0], max_frame)
                 
-                if data[1] == "lidar":
+                elif data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.rootDir, f'{data[0].frame + 1}.yaml')
+                    yaml_file = os.path.join(self.rootDir, f'{max_frame}.yaml')
 
                     self.lidar_data = data[0]
 
@@ -307,9 +391,9 @@ class UAV:
 
                     camera_params['lidar_pose'] = lidar_pose.tolist()
 
-                    self.process_dot_image(data[0])
+                    self.save_lidar(data[0], max_frame)
 
-                if data[1] != "lidar":
+                elif data[1] != "lidar":
                     camera_id = data[1]
 
                     # 获取外参和位姿
@@ -324,7 +408,7 @@ class UAV:
                     }
 
                     # 保存相机图像
-                    self.process_image(data[0], camera_id)
+                    self.save_image(data[0], camera_id, max_frame)
                 
             # 将所有相机的参数写入一个 YAML 文件
             if yaml_file is not None:
@@ -357,19 +441,51 @@ class UAV:
             print(f"Error: {e}")
 
     def add_vehicle_to_yaml(self, vehicles_list, lidar_data, yaml_file):
-        lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32)
-        lidar_points = np.reshape(lidar_points, (int(lidar_points.shape[0] / 4), 4))
-        # lidar_points = lidar_points.reshape((-1, 3))  # 每个点有 x, y, z
-        # print(lidar_points)
+
         vehicles_info = {}
         count=0
+
+        # 将原始点云数据转换为 numpy 数组
+        lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32).reshape(-1, 4)
+
+        # 获取 Lidar 的变换矩阵，包括平移和旋转
+        lidar_transform = self.lidar_sensor.get_transform()
+
+        # 获取 Lidar 的位置和旋转
+        lidar_location = lidar_transform.location
+        lidar_rotation = lidar_transform.rotation
+
+        # 计算 Lidar 的旋转矩阵
+        yaw = np.radians(lidar_rotation.yaw)
+        pitch = np.radians(lidar_rotation.pitch)
+        roll = np.radians(lidar_rotation.roll)
+
+        # 计算旋转矩阵
+        R = np.array([
+            [np.cos(yaw) * np.cos(pitch), np.sin(yaw) * np.cos(pitch), -np.sin(pitch)],
+            [np.cos(yaw) * np.sin(pitch) * np.sin(roll) - np.sin(yaw) * np.cos(roll),
+             np.sin(yaw) * np.sin(pitch) * np.sin(roll) + np.cos(yaw) * np.cos(roll),
+             np.cos(pitch) * np.sin(roll)],
+            [np.cos(yaw) * np.sin(pitch) * np.cos(roll) + np.sin(yaw) * np.sin(roll),
+             np.sin(yaw) * np.sin(pitch) * np.cos(roll) - np.cos(yaw) * np.sin(roll),
+             np.cos(pitch) * np.cos(roll)]
+        ])
+
+        # 应用平移和旋转到点云数据
+        world_points = (lidar_points[:, :3] @ R.T) + np.array([lidar_location.x, lidar_location.y, lidar_location.z])
+
+        # print(world_points)
 
         for vehicle in vehicles_list:
 
             # print(vehicle.get_location())
             # print(vehicle.type_id)
             # print("--------------------")
-            if(abs(vehicle.get_location().x-self.location.x)<50 and abs(vehicle.get_location().y-self.location.y)<50):
+            # if(abs(vehicle.get_location().x-self.location.x)<50 and abs(vehicle.get_location().y-self.location.y)<50):
+            if(self.vehicle_in_lidar(vehicle,world_points)):
+                    print(vehicle.get_location())
+                    print(vehicle.type_id)
+                    print("--------------------")
                     # # 收集车辆信息
                     # location = vehicle.get_location()
                     # rotation = vehicle.get_transform().rotation
@@ -388,13 +504,13 @@ class UAV:
                     vehicle_info = {
 
                         'angle': [
-                            vehicle.get_transform().rotation.roll,
-                            vehicle.get_transform().rotation.yaw,
+                            -vehicle.get_transform().rotation.roll,
+                            -vehicle.get_transform().rotation.yaw,
                             vehicle.get_transform().rotation.pitch
                         ],
                         'center': [
                             vehicle.bounding_box.location.x,
-                            vehicle.bounding_box.location.y,
+                            -vehicle.bounding_box.location.y,
                             vehicle.bounding_box.location.z
                         ],
                         'extent': [
@@ -404,7 +520,7 @@ class UAV:
                         ],
                         'location': [
                             vehicle.get_location().x,
-                            vehicle.get_location().y,
+                            -vehicle.get_location().y,
                             vehicle.get_location().z
                         ],
                         'speed': vehicle.get_velocity().length()  # 计算速度
@@ -435,7 +551,7 @@ class UAV:
 
         # print("车辆信息已保存到 %s" % yaml_file)
 
-    def vehicle_in_lidar(self,vehicle, lidar_points):
+    def vehicle_in_lidar(self,vehicle, world_points):
         """
         判断车辆是否被 LiDAR 传感器扫描到
         :param vehicle: 车辆对象
@@ -443,64 +559,65 @@ class UAV:
         :return: 如果车辆被扫到则返回 True，否则返回 False
         """
 
-        # points = np.frombuffer(lidar_points, dtype=np.float32)
-        # points = np.reshape(points, (int(points.shape[0] / 4), 4))
+        # vehicle_transform = vehicle.get_transform()
+        vehicle_location = vehicle.get_location()
 
-        points=lidar_points
+        vehicle_pos = np.array([vehicle_location.x, vehicle_location.y, vehicle_location.z])
 
+        # 根据车辆位置过滤世界坐标系下的点云数据
+        distances = np.linalg.norm(world_points - vehicle_pos, axis=1)
+        detected_points = world_points[distances < 2]  # 阈值可以根据需要调整
 
-        # 提取x, y, z坐标
-        x_points = points[:, 0]
-        y_points = points[:, 1]
-        z_points = points[:, 2]
-
-        # 判断点是否在车辆附近（使用车辆的位置判断）
-        vehicle_distance_threshold = 2  # 设置一个合理的距离阈值（单位：米）
-        distances = np.sqrt((x_points - vehicle.get_location().x) ** 2 + (y_points - vehicle.get_location().y) ** 2 + (
-                    z_points - vehicle.get_location().z) ** 2)
-
-        sorted_indices = np.argsort(distances)
-        print(sorted_indices[0])
-        # for i, distance in enumerate(distances):
-        #     if distance<100:
-        #         print(f"Point {i}: Distance = {distance}")
-
-        # 过滤在阈值范围内的点
-        points_in_range = points[distances < vehicle_distance_threshold]
-
-        if len(points_in_range) > 0:
-            print("okay")
+        # 若检测到车辆，则打印车辆信息
+        if len(detected_points) > 0:
             return True
         else:
             return False
+            # print(f"Vehicle ID: {vehicle.id}, Location: {vehicle_location}")
 
-        # # 获取车辆的边界框
-        # bounding_box = vehicle.bounding_box
-        #
-        # # 计算边界框的中心和扩展
-        # center = bounding_box.location
-        # extent = bounding_box.extent
-        # # 将中心位置转换为 numpy 数组
-        # center_np = np.array([center.x, center.y, center.z])
-        # # 定义边界框的最小和最大点
-        # min_point = center_np - np.array([extent.x, extent.y, extent.z])
-        # max_point = center_np + np.array([extent.x, extent.y, extent.z])
-        # # 检查 LiDAR 点是否在边界框内
-        # points = lidar_points[:, :3]
-        # # points[:, 1] = -points[:, 1]
-        #
-        # # for point in points:
-        # #     if (min_point[0] <= point.x <= max_point[0] and
-        # #             min_point[1] <= point.y <= max_point[1] and
-        # #             min_point[2] <= point.z <= max_point[2]):
-        # #         return True  # 找到一个点在边界框内，返回 True
-        #
-        # for point in points:
-        #     if (min_point[0] <= point[0] <= max_point[0] and
-        #             min_point[1] <= point[1] <= max_point[1] and
-        #             min_point[2] <= point[2] <= max_point[2]):
-        #         return True  # 找到一个点在边界框内，返回 True
-        # return False  # 没有点在边界框内，返回 False
+
+    def is_point_in_bounding_box(self,point, bounding_box, vehicle_transform):
+        # 先转换点到车辆的局部坐标系
+        relative_point =self.inverse_transform_point(point, vehicle_transform)
+        # relative_point = vehicle_transform.inversce_transform(point)
+
+        # 获取边界框的尺寸
+        extent = bounding_box.extent
+
+        # 检查该点是否在边界框内
+        if (-extent.x <= relative_point.x <= extent.x and
+                -extent.y <= relative_point.y <= extent.y and
+                -extent.z <= relative_point.z <= extent.z):
+            return True
+        return False
+
+    def inverse_transform_point(self,point, transform):
+        # 获取车辆的旋转和平移
+        rotation = transform.rotation
+        location = transform.location
+
+        # 步骤1：先平移点，将点移到车辆坐标系的原点
+        relative_point = np.array([point.x - location.x, point.y - location.y, point.z - location.z])
+
+        # 步骤2：将世界坐标系的点旋转到局部坐标系
+        # 逆旋转角度（yaw, pitch, roll）
+        yaw = -np.radians(rotation.yaw)
+        pitch = -np.radians(rotation.pitch)
+        roll = -np.radians(rotation.roll)
+
+        # 旋转矩阵
+        rotation_matrix = np.array([
+            [np.cos(yaw) * np.cos(pitch), np.cos(yaw) * np.sin(pitch) * np.sin(roll) - np.sin(yaw) * np.cos(roll),
+             np.cos(yaw) * np.sin(pitch) * np.cos(roll) + np.sin(yaw) * np.sin(roll)],
+            [np.sin(yaw) * np.cos(pitch), np.sin(yaw) * np.sin(pitch) * np.sin(roll) + np.cos(yaw) * np.cos(roll),
+             np.sin(yaw) * np.sin(pitch) * np.cos(roll) - np.cos(yaw) * np.sin(roll)],
+            [-np.sin(pitch), np.cos(pitch) * np.sin(roll), np.cos(pitch) * np.cos(roll)]
+        ])
+
+        # 旋转点
+        local_point = np.dot(rotation_matrix, relative_point)
+
+        return carla.Location(x=local_point[0], y=local_point[1], z=local_point[2])
 
     def move(self):
         """

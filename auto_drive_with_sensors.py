@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 20  # 模拟总时长（秒）
+    total_sec = 5  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -142,9 +142,13 @@ def main():
                 print(response.error)
             else:
                 vehicles_list.append(response.actor_id)
+                vehicle = world.get_actor(response.actor_id)
+
+                # 或者通过traffic_manager为每辆车单独设置速度百分比差异
+                # traffic_manager.vehicle_percentage_speed_difference(vehicle, random.uniform(-1000, -1000))  # 车辆速度限制范围
 
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(50)      # 设置全局速度差异
+        traffic_manager.global_percentage_speed_difference(0)      # 设置全局速度差异
         traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         # ----------------- UAV 设置 -----------------
@@ -164,7 +168,7 @@ def main():
         # uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
         # uavs.append(uav3)
 
-        location4 = carla.Location(x=0, y=0, z=50)
+        location4 = carla.Location(x=0, y=-50, z=50)
         uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
         uavs.append(uav4)
 
