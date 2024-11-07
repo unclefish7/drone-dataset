@@ -176,6 +176,7 @@ def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
     plt.show()
 
     return True
+
 # 主函数
 for frame_file in os.listdir(DATASET_FOLDER):
     if frame_file.endswith('.yaml'):

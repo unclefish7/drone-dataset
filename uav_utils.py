@@ -302,6 +302,14 @@ class UAV:
         T_sensor_to_world = np.array(sensor_transform.get_matrix())  # 获取齐次变换矩阵
         rotation_matrix = T_sensor_to_world[:3, :3]  # 提取传感器到世界的旋转矩阵
 
+        M_y = np.array([
+            [1,  0,  0],
+            [0, -1,  0],
+            [0,  0,  1]
+        ])
+
+        rotation_matrix = M_y @ rotation_matrix @ M_y
+
         # 计算从世界到传感器的旋转矩阵
         R_world_to_sensor = rotation_matrix.T  # 旋转矩阵的转置
 
