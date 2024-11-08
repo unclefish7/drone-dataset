@@ -44,9 +44,10 @@ def visualize_point_cloud(point_cloud, lidar_pose):
 def adjust_point_cloud_to_world(point_cloud, lidar_pose):
     # 将点云转换到世界坐标系，考虑激光雷达的位姿
     x, y, z, roll, yaw, pitch = lidar_pose
+    print(lidar_pose)
     # 计算旋转矩阵
     roll_rad = np.deg2rad(roll)
-    pitch_rad = np.deg2rad(pitch)
+    pitch_rad = -np.deg2rad(pitch)
     yaw_rad = np.deg2rad(yaw)
 
     # 计算绕 X 轴的旋转矩阵（Roll）
@@ -120,26 +121,26 @@ def validate_intrinsics_extrinsics(yaml_data, image_path, point_cloud):
         raise ValueError(f"Invalid point cloud shape: {point_cloud.shape}")
 
     # 可视化原始点云
-    # original_pcd = o3d.geometry.PointCloud()
-    # original_pcd.points = o3d.utility.Vector3dVector(point_cloud)
-    # world_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=10.0, origin=[0, 0, 0])
+    original_pcd = o3d.geometry.PointCloud()
+    original_pcd.points = o3d.utility.Vector3dVector(point_cloud)
+    world_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=10.0, origin=[0, 0, 0])
     # o3d.visualization.draw_geometries([original_pcd, world_frame], window_name="Original Point Cloud (World Coordinates)")
 
     # 点云旋转
     rotated_points = (rotation @ point_cloud.T).T  # (N, 3)
 
     # 可视化旋转后的点云
-    # rotated_pcd = o3d.geometry.PointCloud()
-    # rotated_pcd.points = o3d.utility.Vector3dVector(rotated_points)
+    rotated_pcd = o3d.geometry.PointCloud()
+    rotated_pcd.points = o3d.utility.Vector3dVector(rotated_points)
     # o3d.visualization.draw_geometries([rotated_pcd, world_frame], window_name="Rotated Point Cloud")
 
     # 点云平移
     cam_points = rotated_points + translation.T  # (N, 3)
 
     # 可视化平移后的点云
-    # cam_pcd = o3d.geometry.PointCloud()
-    # cam_pcd.points = o3d.utility.Vector3dVector(cam_points)
-    # cam_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=10.0, origin=[0, 0, 0])
+    cam_pcd = o3d.geometry.PointCloud()
+    cam_pcd.points = o3d.utility.Vector3dVector(cam_points)
+    cam_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=10.0, origin=[0, 0, 0])
     # o3d.visualization.draw_geometries([cam_pcd, cam_frame], window_name="Translated Point Cloud (Camera Coordinates)")
 
     # 仅保留相机前方的点
@@ -186,14 +187,17 @@ for frame_file in os.listdir(DATASET_FOLDER):
         yaml_data = load_yaml(yaml_path)
         point_cloud = load_point_cloud(pcd_path)
 
+
         # 读取激光雷达的位姿
         if 'lidar_pose' in yaml_data:
             lidar_pose = yaml_data['lidar_pose']
+
+            # visualize_point_cloud(point_cloud, lidar_pose=lidar_pose)
+
             # 调整点云基准点到世界坐标系
             point_cloud_world = adjust_point_cloud_to_world(point_cloud, lidar_pose)
 
-            # 可视化交换后的点云
-            visualize_point_cloud(point_cloud_world, lidar_pose=lidar_pose)
+            # visualize_point_cloud(point_cloud_world, lidar_pose=lidar_pose)
 
             for cam_index in range(5):
                 image_path = os.path.join(DATASET_FOLDER, f"{frame}_camera{cam_index}.png")

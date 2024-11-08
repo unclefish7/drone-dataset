@@ -168,7 +168,7 @@ def main():
         # uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
         # uavs.append(uav3)
 
-        location4 = carla.Location(x=50, y=0, z=50)
+        location4 = carla.Location(x=0, y=0, z=50)
         uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
         uavs.append(uav4)
 
