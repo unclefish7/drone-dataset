@@ -5,7 +5,7 @@ import yaml
 import os
 import time
 import math
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 from queue import Queue
 from queue import Empty
 
@@ -271,6 +271,7 @@ class UAV:
         
         return intrinsics
 
+
     def get_sensor_extrinsics_and_pose(self, data):
         """
         计算传感器相对于给定坐标系的外参矩阵和位姿。
@@ -282,60 +283,54 @@ class UAV:
         - extrinsics：4x4 的 numpy 数组，表示外参矩阵。
         - pose：长度为 6 的 numpy 数组，包含 [x, y, z, roll, pitch, yaw]，角度以度为单位。
         """
-
         sensor_transform = data.transform
 
-        # 计算位姿
+        # 提取位置信息
         x = sensor_transform.location.x
         y = -sensor_transform.location.y  # Y 轴取反
         z = sensor_transform.location.z
 
-        # 提取旋转（以度为单位），并根据 Y 轴取反进行调整
-        roll_deg = -sensor_transform.rotation.roll   # Roll 角取反
-        yaw_deg = -sensor_transform.rotation.yaw     # Yaw 角取反
-        pitch_deg = sensor_transform.rotation.pitch  # Pitch 角不变
+        # 提取旋转信息（Roll、Pitch、Yaw 以度为单位）
+        roll_deg = -sensor_transform.rotation.roll  # Roll 角取反
+        yaw_deg = -sensor_transform.rotation.yaw    # Yaw 角取反
+        pitch_deg = sensor_transform.rotation.pitch # Pitch 角不变
 
+        # 保存位姿
         pose = np.array([x, y, z, roll_deg, yaw_deg, pitch_deg])
 
-        # 将角度从度转换为弧度
-        roll = np.deg2rad(roll_deg)
-        pitch = np.deg2rad(pitch_deg)
-        yaw = np.deg2rad(yaw_deg)
+        # 将欧拉角直接转换为旋转矩阵（使用四元数避免万向节锁）
+        # 使用 CARLA 提供的函数获取旋转矩阵
+        T_sensor_to_world = np.array(sensor_transform.get_matrix())  # 获取齐次变换矩阵
+        rotation_matrix = T_sensor_to_world[:3, :3]  # 提取传感器到世界的旋转矩阵
 
-        # 计算旋转矩阵
-        # 使用 ZYX 顺序（Yaw-Pitch-Roll），即先绕 Z 轴旋转（yaw），再绕 Y 轴旋转（pitch），再绕 X 轴旋转（roll）
-
-        # 旋转矩阵绕 X 轴（Roll）
-        R_x = np.array([
-            [1, 0, 0],
-            [0, np.cos(roll), -np.sin(roll)],
-            [0, np.sin(roll), np.cos(roll)]
+        M_y = np.array([
+            [1,  0,  0],
+            [0, -1,  0],
+            [0,  0,  1]
         ])
 
-        # 旋转矩阵绕 Y 轴（Pitch）
-        R_y = np.array([
-            [np.cos(pitch), 0, np.sin(pitch)],
-            [0, 1, 0],
-            [-np.sin(pitch), 0, np.cos(pitch)]
+        rotation_matrix = M_y @ rotation_matrix @ M_y
+
+        # 计算从世界到传感器的旋转矩阵
+        R_world_to_sensor = rotation_matrix.T  # 旋转矩阵的转置
+
+        # 定义 CARLA 坐标系到相机坐标系的转换矩阵
+        R_carla_to_camera = np.array([
+            [0, -1,  0],  # Y -> -X
+            [0,  0, -1],  # Z -> -Y
+            [1,  0,  0]   # X -> Z
         ])
 
-        # 旋转矩阵绕 Z 轴（Yaw）
-        R_z = np.array([
-            [np.cos(yaw), -np.sin(yaw), 0],
-            [np.sin(yaw), np.cos(yaw), 0],
-            [0, 0, 1]
-        ])
-
-        # 总的旋转矩阵 R = R_z * R_y * R_x
-        R = R_z @ R_y @ R_x
+        # 将 CARLA 坐标系旋转转换为相机坐标系
+        R = R_carla_to_camera @ R_world_to_sensor
 
         # 构建 4x4 外参矩阵
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = R
-        extrinsics[:3, 3] = [x, y, z]
+        extrinsics[:3, 3] = - R @ np.array([x, y, z])
 
         return extrinsics, pose
-    
+  
     def get_lidar_pose(self, data):
         sensor_transform = data.transform
 
@@ -370,7 +365,7 @@ class UAV:
                 if i[0].frame > max_frame:
                     max_frame = i[0].frame
 
-            for _ in range(6):
+            for _ in range(7):
                 data = self.sensor_queue.get(True, 1.0)
 
                 if data is None:
