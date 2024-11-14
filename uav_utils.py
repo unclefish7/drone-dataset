@@ -5,6 +5,8 @@ import yaml
 import os
 import time
 import math
+
+from matplotlib import pyplot as plt
 from scipy.spatial.transform import Rotation
 from PIL import Image
 from queue import Queue
@@ -249,13 +251,22 @@ class UAV:
             # 翻转 y 轴以匹配坐标系
             points[:, 1] = -points[:, 1]
 
+            # 提取 intensity 信息
+            intensities = data[:, 3]
+
+            # 标准化 intensity 到 [0, 1] 范围
+            intensities = (intensities - intensities.min()) / (intensities.max() - intensities.min())
+            intensities = np.clip(intensities, 0, 1)
+
+            # 使用 matplotlib colormap 将 intensity 映射为彩色
+            colormap = plt.get_cmap('viridis')
+            colors = colormap(intensities)[:, :3]  # 仅提取 RGB 通道
+
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
-
-            if not os.path.exists(self.selfDir):
-                os.makedirs(self.selfDir)
-            pcd_file_name = os.path.join(self.selfDir, f'{frame}.pcd')
+            pcd.colors = o3d.utility.Vector3dVector(colors)
+            pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
