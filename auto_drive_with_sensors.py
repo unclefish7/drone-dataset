@@ -227,8 +227,16 @@ if __name__ == '__main__':
         Dir_town03 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03'
         Dir_town04 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town04'
 
-        main("Town03", 5, Dir_town03)
-        main("Town04", 5, Dir_town04)
+        repetitions = 3  # 采集次数
+        for i in range(repetitions):
+            save_dir = os.path.join(Dir_town04, f"run_{i+1}")
+            os.makedirs(save_dir, exist_ok=True)
+            main("Town04", 20, save_dir)
+
+        for i in range(repetitions):
+            save_dir = os.path.join(Dir_town03, f"run_{i+1}")
+            os.makedirs(save_dir, exist_ok=True)
+            main("Town03", 20, save_dir)
     except KeyboardInterrupt:
         pass
     finally:
