@@ -38,7 +38,9 @@ def main(world_name, simulation_sec, save_Dir):
     client.set_timeout(10.0)
 
     # 加载特定的地图
-    world = client.load_world(world_name)
+    world = client.load_world_if_different(world_name)
+    if not world:
+        world = client.get_world()
 
     # 获取交通管理器和世界设置
     traffic_manager = client.get_trafficmanager(tm_port)
