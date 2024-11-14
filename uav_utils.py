@@ -49,7 +49,7 @@ class UAV:
         self.sensor_queue = Queue()  # 传感器数据队列
 
         # 传感器采集间隔设置
-        self.sensors_capture_intervals = 1  # 传感器采集间隔（秒）
+        self.sensors_capture_intervals = 0.1  # 传感器采集间隔（秒）
         self.ticks_per_capture = self.sensors_capture_intervals / world.get_settings().fixed_delta_seconds
         self.tick_counter = 0  # tick 计数器
 
