@@ -190,6 +190,7 @@ def main(world_name, simulation_sec, save_Dir):
 
             if synchronous_mode:
                 world.tick()
+                print(f"Tick {tick_count}/{total_tick}")
                 tick_count += 1
                 for uav in uavs:
                     vehicles = world.get_actors().filter('vehicle.*')
@@ -231,11 +232,13 @@ if __name__ == '__main__':
         for i in range(repetitions):
             save_dir = os.path.join(Dir_town04, f"run_{i+1}")
             os.makedirs(save_dir, exist_ok=True)
+            print(f"Running iteration {i+1} on Town04")
             main("Town04", 20, save_dir)
 
         for i in range(repetitions):
             save_dir = os.path.join(Dir_town03, f"run_{i+1}")
             os.makedirs(save_dir, exist_ok=True)
+            print(f"Running iteration {i+1} on Town03")
             main("Town03", 20, save_dir)
     except KeyboardInterrupt:
         pass
