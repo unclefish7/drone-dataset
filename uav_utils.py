@@ -16,7 +16,7 @@ class RGBData:
         self.data = data              # RGB数据
 
 class UAV:
-    def __init__(self, world, location, uav_id, yaw_angle=0):
+    def __init__(self, world, location, uav_id, rootDir, yaw_angle=0):
         """
         初始化 UAV 类。
 
@@ -32,7 +32,8 @@ class UAV:
         self.uav_id = uav_id  # 无人机的唯一 ID
 
         # 数据保存的根目录
-        self.rootDir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{self.uav_id}'
+        self.rootDir = rootDir
+        self.selfDir = os.path.join(self.rootDir, str(self.uav_id))
 
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
@@ -208,7 +209,9 @@ class UAV:
         """
         # 生成文件名并保存图像
         if data != None:
-            file_name = os.path.join(self.rootDir, f'{frame}_segmentation.png')
+            if not os.path.exists(self.selfDir):
+                os.makedirs(self.selfDir)
+            file_name = os.path.join(self.selfDir, f'{frame}_segmentation.png')
             data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
     def save_image(self, image, direction, frame):
@@ -223,10 +226,10 @@ class UAV:
         if image != None:
             # 检查目录是否存在，如果不存在则创建
 
-            if not os.path.exists(self.rootDir):
-                os.makedirs(self.rootDir)
+            if not os.path.exists(self.selfDir):
+                os.makedirs(self.selfDir)
             
-            file_name = os.path.join(self.rootDir, f'{frame}_{direction}.png')
+            file_name = os.path.join(self.selfDir, f'{frame}_{direction}.png')
             image.save_to_disk(file_name)
 
     def save_lidar(self, image, frame):
@@ -250,9 +253,9 @@ class UAV:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
 
-            if not os.path.exists(self.rootDir):
-                os.makedirs(self.rootDir)
-            pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
+            if not os.path.exists(self.selfDir):
+                os.makedirs(self.selfDir)
+            pcd_file_name = os.path.join(self.selfDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -396,7 +399,7 @@ class UAV:
                 
                 elif data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.rootDir, f'{max_frame}.yaml')
+                    yaml_file = os.path.join(self.selfDir, f'{max_frame}.yaml')
 
                     self.lidar_data = data[0]
 
@@ -491,9 +494,9 @@ class UAV:
 
         for vehicle in vehicles_list:
             if(self.vehicle_in_lidar(vehicle,world_points)):
-                    print(vehicle.get_location())
-                    print(vehicle.type_id)
-                    print("--------------------")
+                    # print(vehicle.get_location())
+                    # print(vehicle.type_id)
+                    # print("--------------------")
                     # # 收集车辆信息
                     # location = vehicle.get_location()
                     # rotation = vehicle.get_transform().rotation
@@ -537,15 +540,16 @@ class UAV:
                     # 将信息存入字典
                     vehicles_info[vehicle.id] = vehicle_info
                     count=count+1
-        print(count)
+        # print(count)
 
 
 
 
         if self.uav_id == 2:
-            print(vehicles_info)
+            # print(vehicles_info)
             # print(vehicle)
             # print("-----------------------------------------------")
+            pass
 
 
         # 将车辆信息存入 YAML 文件
@@ -661,6 +665,9 @@ class UAV:
                 self.move()
 
     # 设置各种参数的函数
+    def set_rootDir(self, newDir):
+        self.rootDir = newDir
+
     def set_sensors_capture_intervals(self, intervals):
         self.sensors_capture_intervals = intervals
 
