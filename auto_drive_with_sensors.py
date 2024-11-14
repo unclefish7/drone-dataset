@@ -24,7 +24,7 @@ def get_actor_blueprints(world, filter_pattern):
     return world.get_blueprint_library().filter(filter_pattern)
 
 
-def main():
+def main(world_name, simulation_sec, save_Dir):
     # 存储生成的车辆演员 ID，以便后续销毁
     vehicles_list = []
 
@@ -38,7 +38,7 @@ def main():
     client.set_timeout(10.0)
 
     # 加载特定的地图
-    world = client.load_world('Town03')
+    world = client.load_world(world_name)
 
     # 获取交通管理器和世界设置
     traffic_manager = client.get_trafficmanager(tm_port)
@@ -60,7 +60,7 @@ def main():
         settings.fixed_delta_seconds = 0.01  # 应小于 0.5
         world.apply_settings(settings)
 
-    total_sec = 5  # 模拟总时长（秒）
+    total_sec = simulation_sec  # 模拟总时长（秒）
     total_tick = int(total_sec / settings.fixed_delta_seconds) + 1  # 总 tick 数
 
     try:
@@ -103,8 +103,8 @@ def main():
         junction_locations = [junction[0].transform.location for junction in junctions]
 
         # 打印所有路口的位置
-        for i, location in enumerate(junction_locations):
-            print(f"Junction {i}: (x={location.x}, y={location.y}, z={location.z})")
+        # for i, location in enumerate(junction_locations):
+        #     print(f"Junction {i}: (x={location.x}, y={location.y}, z={location.z})")
 
         # ----------------- 交通设置 -----------------
 
@@ -167,7 +167,7 @@ def main():
         # 随机选择一个路口位置作为第一个 UAV 的位置
         location1 = random.choice(junction_locations)
         location1.z += 50  # 提升 UAV 的高度
-        uav1 = UAV(world, location1, uav_id=1, yaw_angle=random.uniform(0, 360))
+        uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=random.uniform(0, 360))
         uavs.append(uav1)
 
         # 随机生成4个 UAV
@@ -178,7 +178,7 @@ def main():
             y_offset = radius * np.sin(angle)
             location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
             yaw_angle = random.uniform(0, 360)
-            uav = UAV(world, location, uav_id=i, yaw_angle=yaw_angle)
+            uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
             uavs.append(uav)
 
 
@@ -224,7 +224,11 @@ def main():
 
 if __name__ == '__main__':
     try:
-        main()
+        Dir_town03 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03'
+        Dir_town04 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town04'
+
+        main("Town03", 5, Dir_town03)
+        main("Town04", 5, Dir_town04)
     except KeyboardInterrupt:
         pass
     finally:
