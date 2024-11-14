@@ -9,6 +9,7 @@ import numpy as np
 
 from queue import Queue
 from queue import Empty
+import argparse
 
 from uav_utils import UAV  # 导入自定义的 UAV 类
 
@@ -225,23 +226,22 @@ def main(world_name, simulation_sec, save_Dir):
             uav.destroy()
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='CARLA Auto Drive with Sensors')
+    parser.add_argument('--repetitions', type=int, required=True, help='Number of repetitions for data collection')
+    parser.add_argument('--town', type=str, required=True, help='Name of the town map to use')
+    return parser.parse_args()
+
+args = parse_arguments()
+
 if __name__ == '__main__':
     try:
-        Dir_town03 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03'
-        Dir_town04 = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town04'
-
-        repetitions = 3  # 采集次数
-        for i in range(repetitions):
-            save_dir = os.path.join(Dir_town04, f"run_{i+1}")
+        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{args.town.lower()}'
+        for i in range(args.repetitions):
+            save_dir = os.path.join(base_dir, f"run_{i+1}")
             os.makedirs(save_dir, exist_ok=True)
-            print(f"Running iteration {i+1} on Town04")
-            main("Town04", 20, save_dir)
-
-        for i in range(repetitions):
-            save_dir = os.path.join(Dir_town03, f"run_{i+1}")
-            os.makedirs(save_dir, exist_ok=True)
-            print(f"Running iteration {i+1} on Town03")
-            main("Town03", 20, save_dir)
+            print(f"Running iteration {i+1} on {args.town}")
+            main(args.town, 20, save_dir)
     except KeyboardInterrupt:
         pass
     finally:

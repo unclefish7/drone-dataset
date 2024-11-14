@@ -266,7 +266,7 @@ class UAV:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
             pcd.colors = o3d.utility.Vector3dVector(colors)
-            pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
+            pcd_file_name = os.path.join(self.selfDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
