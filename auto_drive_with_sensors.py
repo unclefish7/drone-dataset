@@ -97,6 +97,15 @@ def main():
         selected_weather = "ClearSunset"
         world.set_weather(weather_presets[selected_weather])
 
+        # ----------------- 地图设置 -----------------
+        # 获取所有路口
+        junctions = world.get_map().get_topology()
+        junction_locations = [junction[0].transform.location for junction in junctions]
+
+        # 打印所有路口的位置
+        for i, location in enumerate(junction_locations):
+            print(f"Junction {i}: (x={location.x}, y={location.y}, z={location.z})")
+
         # ----------------- 交通设置 -----------------
 
         desired_vehicle_number = 100  # 想要生成的车辆数量
@@ -155,27 +164,24 @@ def main():
         uavs = []
 
         # 创建第一个 UAV
-        # location1 = carla.Location(x=50, y=0, z=50)
-        # uav1 = UAV(world, location1, uav_id=1, yaw_angle=0)
-        # uavs.append(uav1)
+        # 随机选择一个路口位置作为第一个 UAV 的位置
+        location1 = random.choice(junction_locations)
+        location1.z += 50  # 提升 UAV 的高度
+        uav1 = UAV(world, location1, uav_id=1, yaw_angle=random.uniform(0, 360))
+        uavs.append(uav1)
 
-        # # 可以按需添加更多 UAV
-        # location2 = carla.Location(x=50, y=50, z=50)
-        # uav2 = UAV(world, location2, uav_id=2, yaw_angle=0)
-        # uavs.append(uav2)
+        # 随机生成4个 UAV
+        for i in range(2, 6):
+            angle = random.uniform(0, 2 * np.pi)
+            radius = random.uniform(0, 50)
+            x_offset = radius * np.cos(angle)
+            y_offset = radius * np.sin(angle)
+            location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
+            yaw_angle = random.uniform(0, 360)
+            uav = UAV(world, location, uav_id=i, yaw_angle=yaw_angle)
+            uavs.append(uav)
 
-        # location3 = carla.Location(x=0, y=50, z=50)
-        # uav3 = UAV(world, location3, uav_id=3, yaw_angle=0)
-        # uavs.append(uav3)
 
-        location4 = carla.Location(x=0, y=0, z=50)
-        uav4 = UAV(world, location4, uav_id=4, yaw_angle=0)
-        uavs.append(uav4)
-
-        # 如果需要，可以启用 UAV 移动
-        # delta_location = carla.Location(x=5, y=0, z=0)
-        # uav1.enable_movement(True)
-        # uav1.set_delta_location(delta_location)
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0

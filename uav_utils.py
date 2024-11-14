@@ -166,7 +166,7 @@ class UAV:
 
         # 创建四个不同方向的 RGB 相机
         for direction, yaw, offset in zip(directions, yaw_angles, sensor_offset):
-            adjusted_yaw = yaw - self.yaw_angle  # 根据无人机的朝向调整传感器的朝向
+            adjusted_yaw = yaw # 根据无人机的朝向调整传感器的朝向
 
             rgb_blueprint = self.world.get_blueprint_library().find('sensor.camera.rgb')
             rgb_blueprint.set_attribute('image_size_x', str(image_size_x))
@@ -221,6 +221,11 @@ class UAV:
         """
         # 生成文件名并保存图像
         if image != None:
+            # 检查目录是否存在，如果不存在则创建
+
+            if not os.path.exists(self.rootDir):
+                os.makedirs(self.rootDir)
+            
             file_name = os.path.join(self.rootDir, f'{frame}_{direction}.png')
             image.save_to_disk(file_name)
 
@@ -244,6 +249,9 @@ class UAV:
             # 创建点云并保存为 PCD 文件
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
+
+            if not os.path.exists(self.rootDir):
+                os.makedirs(self.rootDir)
             pcd_file_name = os.path.join(self.rootDir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
