@@ -11,6 +11,6 @@ if __name__ == "__main__":
     current_directory = os.path.dirname(os.path.abspath(__file__))
     scripts_with_args = {
         "auto_drive_with_sensors.py": ["--repetitions=5", "--town=Town03"],
-        "auto_drive_with_sensors.py": ["--repetitions=5", "--town=Town04"]
+        # "auto_drive_with_sensors.py": ["--repetitions=5", "--town=Town04"],
     }
     run_scripts_with_args(current_directory, scripts_with_args)
