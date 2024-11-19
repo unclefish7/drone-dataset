@@ -475,55 +475,31 @@ class UAV:
         count=0
 
         # 将原始点云数据转换为 numpy 数组
-        lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32).reshape(-1, 4)
+        lidar_points = np.frombuffer(lidar_data.raw_data, dtype=np.float32).reshape(-1, 4)[:, :3]
 
-        # 获取 Lidar 的变换矩阵，包括平移和旋转
-        lidar_transform = self.lidar_sensor.get_transform()
+        # print(lidar_points[0])
+        world_points = self.local_to_world(lidar_points)
 
-        # 获取 Lidar 的位置和旋转
-        lidar_location = lidar_transform.location
-        lidar_rotation = lidar_transform.rotation
+        lidar_location = self.lidar_sensor.get_location()
+        lidar_position =[lidar_location.x,lidar_location.y]
 
-        # 计算 Lidar 的旋转矩阵
-        yaw = np.radians(lidar_rotation.yaw)
-        pitch = np.radians(lidar_rotation.pitch)
-        roll = np.radians(lidar_rotation.roll)
+        def euclidean_distance(pos1, pos2):
+            return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
 
-        # 计算旋转矩阵
-        R = np.array([
-            [np.cos(yaw) * np.cos(pitch), np.sin(yaw) * np.cos(pitch), -np.sin(pitch)],
-            [np.cos(yaw) * np.sin(pitch) * np.sin(roll) - np.sin(yaw) * np.cos(roll),
-             np.sin(yaw) * np.sin(pitch) * np.sin(roll) + np.cos(yaw) * np.cos(roll),
-             np.cos(pitch) * np.sin(roll)],
-            [np.cos(yaw) * np.sin(pitch) * np.cos(roll) + np.sin(yaw) * np.sin(roll),
-             np.sin(yaw) * np.sin(pitch) * np.cos(roll) - np.cos(yaw) * np.sin(roll),
-             np.cos(pitch) * np.cos(roll)]
-        ])
-
-        # 应用平移和旋转到点云数据
-        world_points = (lidar_points[:, :3] @ R.T) + np.array([lidar_location.x, lidar_location.y, lidar_location.z])
-
-        # print(world_points)
 
         for vehicle in vehicles_list:
+            vehicle_position = vehicle.get_location()  # 车辆位置，假设为一个坐标对象 [x, y, z]
+            distance = euclidean_distance(lidar_position, [vehicle_position.x, vehicle_position.y])
+            if distance > 150:
+                continue
             if(self.vehicle_in_lidar(vehicle,world_points)):
-                    # print(vehicle.get_location())
+
+                # print(vehicle.get_location())
                     # print(vehicle.type_id)
                     # print("--------------------")
                     # # 收集车辆信息
                     # location = vehicle.get_location()
                     # rotation = vehicle.get_transform().rotation
-
-                    # # 计算车辆前轴位置
-                    # # 通常车辆前轴在车长的一半处，这里用 1.0 表示前轴与车辆中心的距离
-                    # # 可以根据具体车辆模型调整这个值
-                    # front_axle_distance = 1.0  # 可以根据实际情况调整
-                    # yaw_rad = math.radians(rotation.yaw)  # 将角度转换为弧度
-                    #
-                    # # 计算前轴位置
-                    # front_axle_x = location.x + front_axle_distance * math.cos(yaw_rad)
-                    # front_axle_y = location.y + front_axle_distance * math.sin(yaw_rad)
-                    # front_axle_z = location.z  # z 坐标通常保持不变
 
                     vehicle_info = {
 
@@ -553,16 +529,7 @@ class UAV:
                     # 将信息存入字典
                     vehicles_info[vehicle.id] = vehicle_info
                     count=count+1
-        # print(count)
-
-
-
-
-        if self.uav_id == 2:
-            # print(vehicles_info)
-            # print(vehicle)
-            # print("-----------------------------------------------")
-            pass
+        print("%d:%d"%(self.uav_id,count))
 
 
         # 将车辆信息存入 YAML 文件
@@ -600,49 +567,35 @@ class UAV:
             return False
             # print(f"Vehicle ID: {vehicle.id}, Location: {vehicle_location}")
 
+    def local_to_world(self,points):
+        """
+        将局部点云坐标转换为世界坐标系
+        :param points: N x 3 的点云数组
+        :param sensor_transform: carla.Transform 对象
+        :return: N x 3 的世界坐标点云
+        """
 
-    def is_point_in_bounding_box(self,point, bounding_box, vehicle_transform):
-        # 先转换点到车辆的局部坐标系
-        relative_point =self.inverse_transform_point(point, vehicle_transform)
-        # relative_point = vehicle_transform.inversce_transform(point)
+        sensor_transform=self.lidar_sensor.get_transform()
+        # 获取传感器的位置和平移向量
+        sensor_location = sensor_transform.location
+        sensor_rotation = sensor_transform.rotation
 
-        # 获取边界框的尺寸
-        extent = bounding_box.extent
 
-        # 检查该点是否在边界框内
-        if (-extent.x <= relative_point.x <= extent.x and
-                -extent.y <= relative_point.y <= extent.y and
-                -extent.z <= relative_point.z <= extent.z):
-            return True
-        return False
+        num_points = points.shape[0]
+        points_homogeneous = np.hstack((points, np.ones((num_points, 1))))  # N x 4
 
-    def inverse_transform_point(self,point, transform):
-        # 获取车辆的旋转和平移
-        rotation = transform.rotation
-        location = transform.location
+        # 获取 4x4 齐次变换矩阵
+        transform_matrix = np.array(sensor_transform.get_matrix())  # 4x4
 
-        # 步骤1：先平移点，将点移到车辆坐标系的原点
-        relative_point = np.array([point.x - location.x, point.y - location.y, point.z - location.z])
+        # 直接左乘矩阵
+        transformed_points_homogeneous = np.dot(points_homogeneous, transform_matrix.T)  # N x 4
 
-        # 步骤2：将世界坐标系的点旋转到局部坐标系
-        # 逆旋转角度（yaw, pitch, roll）
-        yaw = -np.radians(rotation.yaw)
-        pitch = -np.radians(rotation.pitch)
-        roll = -np.radians(rotation.roll)
+        # 转换回 3D 坐标
+        transformed_points = transformed_points_homogeneous[:, :3]  # 取前三列
 
-        # 旋转矩阵
-        rotation_matrix = np.array([
-            [np.cos(yaw) * np.cos(pitch), np.cos(yaw) * np.sin(pitch) * np.sin(roll) - np.sin(yaw) * np.cos(roll),
-             np.cos(yaw) * np.sin(pitch) * np.cos(roll) + np.sin(yaw) * np.sin(roll)],
-            [np.sin(yaw) * np.cos(pitch), np.sin(yaw) * np.sin(pitch) * np.sin(roll) + np.cos(yaw) * np.cos(roll),
-             np.sin(yaw) * np.sin(pitch) * np.cos(roll) - np.cos(yaw) * np.sin(roll)],
-            [-np.sin(pitch), np.cos(pitch) * np.sin(roll), np.cos(pitch) * np.cos(roll)]
-        ])
 
-        # 旋转点
-        local_point = np.dot(rotation_matrix, relative_point)
+        return transformed_points
 
-        return carla.Location(x=local_point[0], y=local_point[1], z=local_point[2])
 
     def move(self):
         """
