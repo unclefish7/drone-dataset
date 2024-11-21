@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import time
 import random  # 导入标准库的 random 模块
@@ -12,6 +13,18 @@ from queue import Empty
 import argparse
 
 from uav_utils import UAV  # 导入自定义的 UAV 类
+
+# 替换为你的 agents 所在目录
+agents_path = r"C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\PythonAPI\carla"
+if agents_path not in sys.path:
+    sys.path.append(agents_path)
+
+
+# To import a basic agent
+from agents.navigation.basic_agent import BasicAgent
+
+# To import a behavior agent
+from agents.navigation.behavior_agent import BehaviorAgent
 
 
 def get_actor_blueprints(world, filter_pattern):
@@ -143,46 +156,49 @@ def main(world_name, simulation_sec, save_Dir):
 
             # 创建生成车辆的命令并设置自动驾驶
             spawn_actor = carla.command.SpawnActor(blueprint, transform)
-            set_autopilot = carla.command.SetAutopilot(
-                carla.command.FutureActor, True, traffic_manager.get_port())
-            batch.append(spawn_actor.then(set_autopilot))
+            batch.append(spawn_actor)
 
-        # 批量生成车辆
+        # 批量生成车辆，并分配agent
+        agents = []
         responses = client.apply_batch_sync(batch, synchronous_mode)
         for response in responses:
             if response.error:
                 print(response.error)
             else:
-                vehicles_list.append(response.actor_id)
                 vehicle = world.get_actor(response.actor_id)
+                vehicles_list.append(vehicle)
 
-                # 或者通过traffic_manager为每辆车单独设置速度百分比差异
-                # traffic_manager.vehicle_percentage_speed_difference(vehicle, random.uniform(-1000, -1000))  # 车辆速度限制范围
+                agent = BasicAgent(vehicle)
+                agents.append(agent)
 
-        traffic_manager.set_global_distance_to_leading_vehicle(0)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(-300.0)      # 设置全局速度差异
-        traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
+                destination = random.choice(spawn_points).location
+                agent.set_destination(destination)
+
+                agent.set_target_speed(100)
+
 
         # ----------------- UAV 设置 -----------------
         uavs = []
 
         # 创建第一个 UAV
         # 随机选择一个路口位置作为第一个 UAV 的位置
-        location1 = random.choice(junction_locations)
-        location1.z += 50  # 提升 UAV 的高度
+        # location1 = random.choice(junction_locations)
+        # location1.z += 50  # 提升 UAV 的高度
+
+        location1 = carla.Location(x=0, y=0, z=50)
         uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=random.uniform(0, 360))
         uavs.append(uav1)
 
-        # 随机生成4个 UAV
-        for i in range(2, 6):
-            angle = random.uniform(0, 2 * np.pi)
-            radius = random.uniform(0, 50)
-            x_offset = radius * np.cos(angle)
-            y_offset = radius * np.sin(angle)
-            location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-            yaw_angle = random.uniform(0, 360)
-            uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
-            uavs.append(uav)
+        # # 随机生成4个 UAV
+        # for i in range(2, 6):
+        #     angle = random.uniform(0, 2 * np.pi)
+        #     radius = random.uniform(0, 50)
+        #     x_offset = radius * np.cos(angle)
+        #     y_offset = radius * np.sin(angle)
+        #     location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
+        #     yaw_angle = random.uniform(0, 360)
+        #     uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
+        #     uavs.append(uav)
 
 
 
@@ -193,8 +209,17 @@ def main(world_name, simulation_sec, save_Dir):
 
             if synchronous_mode:
                 world.tick()
-                print(f"Tick {tick_count}/{total_tick}")
+                # print(f"Tick {tick_count}/{total_tick}")
                 tick_count += 1
+
+                for i, agent in enumerate(agents):
+                    if agent.done():
+                        destination = random.choice(spawn_points).location
+                        agent.set_destination(destination)
+                    
+                    control = agent.run_step()
+                    vehicles_list[i].apply_control(control)
+
                 for uav in uavs:
                     vehicles = world.get_actors().filter('vehicle.*')
                     uav.update(vehicles)
@@ -241,7 +266,7 @@ if __name__ == '__main__':
             save_dir = os.path.join(base_dir, f"run_{i+1}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 20, save_dir)
+            main(args.town, 5, save_dir)
     except KeyboardInterrupt:
         pass
     finally:
