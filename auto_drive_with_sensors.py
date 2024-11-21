@@ -156,11 +156,8 @@ def main(world_name, simulation_sec, save_Dir):
                 vehicles_list.append(response.actor_id)
                 vehicle = world.get_actor(response.actor_id)
 
-                # 或者通过traffic_manager为每辆车单独设置速度百分比差异
-                # traffic_manager.vehicle_percentage_speed_difference(vehicle, random.uniform(-1000, -1000))  # 车辆速度限制范围
-
         traffic_manager.set_global_distance_to_leading_vehicle(0)  # 设置车辆间距
-        traffic_manager.global_percentage_speed_difference(-300.0)      # 设置全局速度差异
+        traffic_manager.global_percentage_speed_difference(-99)      # 设置全局速度差异
         traffic_manager.set_respawn_dormant_vehicles(True)           # 重新生成静止车辆
 
         # ----------------- UAV 设置 -----------------
@@ -168,21 +165,22 @@ def main(world_name, simulation_sec, save_Dir):
 
         # 创建第一个 UAV
         # 随机选择一个路口位置作为第一个 UAV 的位置
-        location1 = random.choice(junction_locations)
+        # location1 = random.choice(junction_locations)
+        location1 = carla.Location(x=0, y=0, z=0)
         location1.z += 50  # 提升 UAV 的高度
         uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=random.uniform(0, 360))
         uavs.append(uav1)
 
         # 随机生成4个 UAV
-        for i in range(2, 6):
-            angle = random.uniform(0, 2 * np.pi)
-            radius = random.uniform(0, 50)
-            x_offset = radius * np.cos(angle)
-            y_offset = radius * np.sin(angle)
-            location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-            yaw_angle = random.uniform(0, 360)
-            uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
-            uavs.append(uav)
+        # for i in range(2, 6):
+        #     angle = random.uniform(0, 2 * np.pi)
+        #     radius = random.uniform(0, 50)
+        #     x_offset = radius * np.cos(angle)
+        #     y_offset = radius * np.sin(angle)
+        #     location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
+        #     yaw_angle = random.uniform(0, 360)
+        #     uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
+        #     uavs.append(uav)
 
 
 
@@ -193,7 +191,7 @@ def main(world_name, simulation_sec, save_Dir):
 
             if synchronous_mode:
                 world.tick()
-                print(f"Tick {tick_count}/{total_tick}")
+                # print(f"Tick {tick_count}/{total_tick}")
                 tick_count += 1
                 for uav in uavs:
                     vehicles = world.get_actors().filter('vehicle.*')
