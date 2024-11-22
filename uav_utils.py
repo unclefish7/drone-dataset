@@ -500,42 +500,43 @@ class UAV:
             if distance > 150:
                 continue
             if(self.vehicle_in_lidar(vehicle,world_points)):
-
                 # print(vehicle.get_location())
-                    # print(vehicle.type_id)
-                    # print("--------------------")
-                    # # 收集车辆信息
-                    # location = vehicle.get_location()
-                    # rotation = vehicle.get_transform().rotation
+                # print(vehicle.type_id)
+                # print("--------------------")
+                # # 收集车辆信息
+                # location = vehicle.get_location()
+                # rotation = vehicle.get_transform().rotation
+                velocity = vehicle.get_velocity()  # 获取车辆的线速度
+                speed = 3.6 * ((velocity.x**2 + velocity.y**2 + velocity.z**2)**0.5)  # m/s 转 km/h
 
-                    vehicle_info = {
+                vehicle_info = {
 
-                        'angle': [
-                            -vehicle.get_transform().rotation.roll,
-                            -vehicle.get_transform().rotation.yaw,
-                            vehicle.get_transform().rotation.pitch
-                        ],
-                        'center': [
-                            vehicle.bounding_box.location.x,
-                            -vehicle.bounding_box.location.y,
-                            vehicle.bounding_box.location.z
-                        ],
-                        'extent': [
-                            vehicle.bounding_box.extent.x,
-                            vehicle.bounding_box.extent.y,
-                            vehicle.bounding_box.extent.z
-                        ],
-                        'location': [
-                            vehicle.get_location().x,
-                            -vehicle.get_location().y,
-                            vehicle.get_location().z
-                        ],
-                        'speed': vehicle.get_velocity().length()  # 计算速度
-                    }
+                    'angle': [
+                        -vehicle.get_transform().rotation.roll,
+                        -vehicle.get_transform().rotation.yaw,
+                        vehicle.get_transform().rotation.pitch
+                    ],
+                    'center': [
+                        vehicle.bounding_box.location.x,
+                        -vehicle.bounding_box.location.y,
+                        vehicle.bounding_box.location.z
+                    ],
+                    'extent': [
+                        vehicle.bounding_box.extent.x,
+                        vehicle.bounding_box.extent.y,
+                        vehicle.bounding_box.extent.z
+                    ],
+                    'location': [
+                        vehicle.get_location().x,
+                        -vehicle.get_location().y,
+                        vehicle.get_location().z
+                    ],
+                    'speed': speed  # 计算速度
+                }
 
-                    # 将信息存入字典
-                    vehicles_info[vehicle.id] = vehicle_info
-                    count=count+1
+                # 将信息存入字典
+                vehicles_info[vehicle.id] = vehicle_info
+                count=count+1
         print("%d:%d"%(self.uav_id,count))
 
 

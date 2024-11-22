@@ -168,7 +168,7 @@ def main(world_name, simulation_sec, save_Dir):
         # location1 = random.choice(junction_locations)
         location1 = carla.Location(x=0, y=0, z=0)
         location1.z += 50  # 提升 UAV 的高度
-        uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=random.uniform(0, 360))
+        uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=0)
         uavs.append(uav1)
 
         # 随机生成4个 UAV
