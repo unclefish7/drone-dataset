@@ -132,7 +132,7 @@ class UAV:
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
         # 设置激光雷达的变换
         lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-        
+
         # lidar_blueprint.set_attribute("channels", '256')
         # lidar_blueprint.set_attribute('range', '100.0')
         # lidar_blueprint.set_attribute('rotation_frequency', '100.0')
@@ -248,8 +248,15 @@ class UAV:
 
             # 提取 XYZ 坐标
             points = data[:, :3]
+
+            points=self.local_to_world(points)
             # 翻转 y 轴以匹配坐标系
             points[:, 1] = -points[:, 1]
+
+
+            points[:, 0] -= self.lidar_sensor.get_location().x
+            points[:, 1] -= self.lidar_sensor.get_location().y
+
 
             # 提取 intensity 信息
             intensities = data[:, 3]
@@ -495,42 +502,40 @@ class UAV:
             if(self.vehicle_in_lidar(vehicle,world_points)):
 
                 # print(vehicle.get_location())
-                # print(vehicle.type_id)
-                # print("--------------------")
-                # # 收集车辆信息
-                # location = vehicle.get_location()
-                # rotation = vehicle.get_transform().rotation
-                velocity = vehicle.get_velocity()  # 获取车辆的线速度
-                speed = 3.6 * ((velocity.x**2 + velocity.y**2 + velocity.z**2)**0.5)  # m/s 转 km/h
+                    # print(vehicle.type_id)
+                    # print("--------------------")
+                    # # 收集车辆信息
+                    # location = vehicle.get_location()
+                    # rotation = vehicle.get_transform().rotation
 
-                vehicle_info = {
+                    vehicle_info = {
 
-                    'angle': [
-                        -vehicle.get_transform().rotation.roll,
-                        -vehicle.get_transform().rotation.yaw,
-                        vehicle.get_transform().rotation.pitch
-                    ],
-                    'center': [
-                        vehicle.bounding_box.location.x,
-                        -vehicle.bounding_box.location.y,
-                        vehicle.bounding_box.location.z
-                    ],
-                    'extent': [
-                        vehicle.bounding_box.extent.x,
-                        vehicle.bounding_box.extent.y,
-                        vehicle.bounding_box.extent.z
-                    ],
-                    'location': [
-                        vehicle.get_location().x,
-                        -vehicle.get_location().y,
-                        vehicle.get_location().z
-                    ],
-                    'speed': speed  # 计算速度
-                }
+                        'angle': [
+                            -vehicle.get_transform().rotation.roll,
+                            -vehicle.get_transform().rotation.yaw,
+                            vehicle.get_transform().rotation.pitch
+                        ],
+                        'center': [
+                            vehicle.bounding_box.location.x,
+                            -vehicle.bounding_box.location.y,
+                            vehicle.bounding_box.location.z
+                        ],
+                        'extent': [
+                            vehicle.bounding_box.extent.x,
+                            vehicle.bounding_box.extent.y,
+                            vehicle.bounding_box.extent.z
+                        ],
+                        'location': [
+                            vehicle.get_location().x,
+                            -vehicle.get_location().y,
+                            vehicle.get_location().z
+                        ],
+                        'speed': vehicle.get_velocity().length()  # 计算速度
+                    }
 
-                # 将信息存入字典
-                vehicles_info[vehicle.id] = vehicle_info
-                count=count+1
+                    # 将信息存入字典
+                    vehicles_info[vehicle.id] = vehicle_info
+                    count=count+1
         print("%d:%d"%(self.uav_id,count))
 
 
@@ -578,9 +583,6 @@ class UAV:
         """
 
         sensor_transform=self.lidar_sensor.get_transform()
-        # 获取传感器的位置和平移向量
-        sensor_location = sensor_transform.location
-        sensor_rotation = sensor_transform.rotation
 
 
         num_points = points.shape[0]
