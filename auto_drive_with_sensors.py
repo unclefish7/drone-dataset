@@ -172,15 +172,15 @@ def main(world_name, simulation_sec, save_Dir):
         uavs.append(uav1)
 
         # 随机生成4个 UAV
-        # for i in range(2, 6):
-        #     angle = random.uniform(0, 2 * np.pi)
-        #     radius = random.uniform(0, 50)
-        #     x_offset = radius * np.cos(angle)
-        #     y_offset = radius * np.sin(angle)
-        #     location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-        #     yaw_angle = random.uniform(0, 360)
-        #     uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
-        #     uavs.append(uav)
+        for i in range(2, 6):
+            angle = random.uniform(0, 2 * np.pi)
+            radius = random.uniform(0, 50)
+            x_offset = radius * np.cos(angle)
+            y_offset = radius * np.sin(angle)
+            location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
+            yaw_angle = random.uniform(0, 360)
+            uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
+            uavs.append(uav)
 
 
 
@@ -234,12 +234,12 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\{args.town.lower()}'
+        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
         for i in range(args.repetitions):
-            save_dir = os.path.join(base_dir, f"run_{i+1}")
+            save_dir = os.path.join(base_dir, f"{args.town.lower()}_run_{i+1}_{time.strftime('%Y_%m_%d_%H_%M_%S')}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 20, save_dir)
+            main(args.town, 1, save_dir)
     except KeyboardInterrupt:
         pass
     finally:

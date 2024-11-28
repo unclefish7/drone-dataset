@@ -446,6 +446,12 @@ class UAV:
                     # 保存相机图像
                     self.save_image(data[0], camera_id, max_frame)
                 
+            # 补全OPENCOOD的数据格式
+            # camera_params['ego_speed'] = 0
+            # camera_params['plan_trajectory'] = [[0,0,0]]
+            # camera_params['predicted_ego_pos'] = [0,0,0,0,0,0]
+            # camera_params['true_ego_pos'] = [0,0,0,0,0,0]
+
             # 将所有相机的参数写入一个 YAML 文件
             if yaml_file is not None:
                 self.save_camera_params_to_yaml(camera_params, yaml_file)
