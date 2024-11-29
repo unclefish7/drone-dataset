@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 # 定义文件夹路径
-DATASET_FOLDER = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\1'
+DATASET_FOLDER = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03_run_1_2024_11_28_21_17_17\5'
 
 # 遍历文件夹中的yaml文件
 def load_yaml(yaml_path):
@@ -192,10 +192,10 @@ for frame_file in os.listdir(DATASET_FOLDER):
         if 'lidar_pose' in yaml_data:
             lidar_pose = yaml_data['lidar_pose']
 
-            # visualize_point_cloud(point_cloud, lidar_pose=lidar_pose)
+            visualize_point_cloud(point_cloud, lidar_pose=lidar_pose)
 
             # 调整点云基准点到世界坐标系
-            point_cloud_world = adjust_point_cloud_to_world(point_cloud, lidar_pose)
+            point_cloud_world = point_cloud
 
             # visualize_point_cloud(point_cloud_world, lidar_pose=lidar_pose)
 

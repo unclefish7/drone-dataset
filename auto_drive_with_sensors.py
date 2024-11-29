@@ -178,7 +178,7 @@ def main(world_name, simulation_sec, save_Dir):
             x_offset = radius * np.cos(angle)
             y_offset = radius * np.sin(angle)
             location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-            yaw_angle = random.uniform(0, 360)
+            yaw_angle = 0
             uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
             uavs.append(uav)
 

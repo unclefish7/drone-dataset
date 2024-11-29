@@ -251,11 +251,10 @@ class UAV:
 
             points=self.local_to_world(points)
             # 翻转 y 轴以匹配坐标系
-            points[:, 1] = -points[:, 1]
-
-
             points[:, 0] -= self.lidar_sensor.get_location().x
             points[:, 1] -= self.lidar_sensor.get_location().y
+
+            points[:, 1] = -points[:, 1]
 
 
             # 提取 intensity 信息
