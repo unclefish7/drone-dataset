@@ -191,7 +191,7 @@ def main(world_name, simulation_sec, save_Dir):
 
             if synchronous_mode:
                 world.tick()
-                # print(f"Tick {tick_count}/{total_tick}")
+                print(f"Tick {tick_count}/{total_tick}")
                 tick_count += 1
                 for uav in uavs:
                     vehicles = world.get_actors().filter('vehicle.*')

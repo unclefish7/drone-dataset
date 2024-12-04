@@ -254,7 +254,7 @@ class UAV:
             points[:, 0] -= self.lidar_sensor.get_location().x
             points[:, 1] -= self.lidar_sensor.get_location().y
 
-            points[:, 1] = -points[:, 1]
+            points[:, 1] = points[:, 1]
 
 
             # 提取 intensity 信息
@@ -329,12 +329,12 @@ class UAV:
 
         # 提取位置信息
         x = sensor_transform.location.x
-        y = -sensor_transform.location.y  # Y 轴取反
+        y = sensor_transform.location.y  # Y 轴取反
         z = sensor_transform.location.z
 
         # 提取旋转信息（Roll、Pitch、Yaw 以度为单位）
-        roll_deg = -sensor_transform.rotation.roll  # Roll 角取反
-        yaw_deg = -sensor_transform.rotation.yaw    # Yaw 角取反
+        roll_deg = sensor_transform.rotation.roll  # Roll 角取反
+        yaw_deg = sensor_transform.rotation.yaw    # Yaw 角取反
         pitch_deg = sensor_transform.rotation.pitch # Pitch 角不变
 
         # 保存位姿
@@ -344,14 +344,6 @@ class UAV:
         # 使用 CARLA 提供的函数获取旋转矩阵
         T_sensor_to_world = np.array(sensor_transform.get_matrix())  # 获取齐次变换矩阵
         rotation_matrix = T_sensor_to_world[:3, :3]  # 提取传感器到世界的旋转矩阵
-
-        M_y = np.array([
-            [1,  0,  0],
-            [0, -1,  0],
-            [0,  0,  1]
-        ])
-
-        rotation_matrix = M_y @ rotation_matrix @ M_y
 
         # 计算从世界到传感器的旋转矩阵
         R_world_to_sensor = rotation_matrix.T  # 旋转矩阵的转置
@@ -377,14 +369,15 @@ class UAV:
         sensor_transform = data.transform
 
         x = sensor_transform.location.x
-        y = -sensor_transform.location.y
+        y = sensor_transform.location.y
         z = sensor_transform.location.z
 
-        roll = -sensor_transform.rotation.roll
-        yaw = -sensor_transform.rotation.yaw
+        roll = sensor_transform.rotation.roll
+        yaw = sensor_transform.rotation.yaw
         pitch = sensor_transform.rotation.pitch
 
-        pose = np.array([x, y, z, roll, yaw, pitch])
+        # pose = np.array([x, y, z, roll, yaw, pitch])
+        pose = np.array([x, y, 0, 0, 0, 0])
 
         return pose
 
@@ -517,13 +510,13 @@ class UAV:
                 vehicle_info = {
 
                     'angle': [
-                        -vehicle.get_transform().rotation.roll,
-                        -vehicle.get_transform().rotation.yaw,
+                        vehicle.get_transform().rotation.roll,
+                        vehicle.get_transform().rotation.yaw,
                         vehicle.get_transform().rotation.pitch
                     ],
                     'center': [
                         vehicle.bounding_box.location.x,
-                        -vehicle.bounding_box.location.y,
+                        vehicle.bounding_box.location.y,
                         vehicle.bounding_box.location.z
                     ],
                     'extent': [
@@ -533,7 +526,7 @@ class UAV:
                     ],
                     'location': [
                         vehicle.get_location().x,
-                        -vehicle.get_location().y,
+                        vehicle.get_location().y,
                         vehicle.get_location().z
                     ],
                     'speed': speed  # 计算速度
