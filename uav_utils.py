@@ -122,27 +122,27 @@ class UAV:
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
 
-        lidar_blueprint.set_attribute("channels", '128')
-        lidar_blueprint.set_attribute('range', '75.0')
-        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        lidar_blueprint.set_attribute('horizontal_fov', '90.0')
-        lidar_blueprint.set_attribute('upper_fov', '45.0')
-        lidar_blueprint.set_attribute('lower_fov', '-45.0')
-        lidar_blueprint.set_attribute('points_per_second', '2500000')
-        lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-        # 设置激光雷达的变换
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-
-        # lidar_blueprint.set_attribute("channels", '256')
-        # lidar_blueprint.set_attribute('range', '100.0')
+        # lidar_blueprint.set_attribute("channels", '128')
+        # lidar_blueprint.set_attribute('range', '75.0')
         # lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        # lidar_blueprint.set_attribute('horizontal_fov', '360.0')
-        # lidar_blueprint.set_attribute('upper_fov', '50.0')
-        # lidar_blueprint.set_attribute('lower_fov', '-90.0')
-        # lidar_blueprint.set_attribute('points_per_second', '10000000')
+        # lidar_blueprint.set_attribute('horizontal_fov', '90.0')
+        # lidar_blueprint.set_attribute('upper_fov', '45.0')
+        # lidar_blueprint.set_attribute('lower_fov', '-45.0')
+        # lidar_blueprint.set_attribute('points_per_second', '2500000')
         # lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
         # # 设置激光雷达的变换
-        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
+        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+
+        lidar_blueprint.set_attribute("channels", '256')
+        lidar_blueprint.set_attribute('range', '100.0')
+        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
+        lidar_blueprint.set_attribute('upper_fov', '50.0')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        lidar_blueprint.set_attribute('points_per_second', '10000000')
+        lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+        # 设置激光雷达的变换
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
 
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
 
@@ -249,12 +249,11 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
 
-            points=self.local_to_world(points)
+            # points=self.local_to_world(points)
             # 翻转 y 轴以匹配坐标系
-            points[:, 0] -= self.lidar_sensor.get_location().x
-            points[:, 1] -= self.lidar_sensor.get_location().y
-
-            points[:, 1] = points[:, 1]
+            # points[:, 0] += self.lidar_sensor.get_location().x
+            # points[:, 1] += self.lidar_sensor.get_location().y
+            points[:, 2] += self.lidar_sensor.get_location().z
 
 
             # 提取 intensity 信息
@@ -376,8 +375,8 @@ class UAV:
         yaw = sensor_transform.rotation.yaw
         pitch = sensor_transform.rotation.pitch
 
-        # pose = np.array([x, y, z, roll, yaw, pitch])
-        pose = np.array([x, y, 0, 0, 0, 0])
+        pose = np.array([x, y, 0, roll, yaw, pitch])
+        # pose = np.array([x, y, 0, 0, 0, 0])
 
         return pose
 
