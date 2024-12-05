@@ -12,12 +12,15 @@ from PIL import Image
 from queue import Queue
 from queue import Empty
 
+total_uav_num = 5
+
 class RGBData:
     def __init__(self, sensor_id, data):
         self.sensor_id = sensor_id  # 传感器编号
         self.data = data              # RGB数据
 
 class UAV:
+    max_frame = 0
     def __init__(self, world, location, uav_id, rootDir, yaw_angle=0):
         """
         初始化 UAV 类。
@@ -92,7 +95,7 @@ class UAV:
         capture_intervals = self.sensors_capture_intervals  # 采集间隔
 
         # 不同方向的设置
-        directions = ["camera1", "camera2", "camera3", "camera4"]
+        directions = ["camera0", "camera1", "camera2", "camera3"]
         yaw_angles = [0, 90, 180, 270]
         sensor_offset = [
             [1, 0, -1],   # Front: 沿 x 正方向偏移
@@ -122,27 +125,27 @@ class UAV:
         # 创建激光雷达传感器
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
 
-        # lidar_blueprint.set_attribute("channels", '128')
-        # lidar_blueprint.set_attribute('range', '75.0')
-        # lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        # lidar_blueprint.set_attribute('horizontal_fov', '90.0')
-        # lidar_blueprint.set_attribute('upper_fov', '45.0')
-        # lidar_blueprint.set_attribute('lower_fov', '-45.0')
-        # lidar_blueprint.set_attribute('points_per_second', '2500000')
-        # lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-        # # 设置激光雷达的变换
-        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-
-        lidar_blueprint.set_attribute("channels", '256')
-        lidar_blueprint.set_attribute('range', '100.0')
+        lidar_blueprint.set_attribute("channels", '128')
+        lidar_blueprint.set_attribute('range', '75.0')
         lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
-        lidar_blueprint.set_attribute('upper_fov', '50.0')
-        lidar_blueprint.set_attribute('lower_fov', '-90.0')
-        lidar_blueprint.set_attribute('points_per_second', '10000000')
+        lidar_blueprint.set_attribute('horizontal_fov', '90.0')
+        lidar_blueprint.set_attribute('upper_fov', '45.0')
+        lidar_blueprint.set_attribute('lower_fov', '-45.0')
+        lidar_blueprint.set_attribute('points_per_second', '2500000')
         lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
         # 设置激光雷达的变换
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+
+        # lidar_blueprint.set_attribute("channels", '256')
+        # lidar_blueprint.set_attribute('range', '100.0')
+        # lidar_blueprint.set_attribute('rotation_frequency', '100.0')
+        # lidar_blueprint.set_attribute('horizontal_fov', '360.0')
+        # lidar_blueprint.set_attribute('upper_fov', '50.0')
+        # lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        # lidar_blueprint.set_attribute('points_per_second', '10000000')
+        # lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+        # # 设置激光雷达的变换
+        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
 
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
 
@@ -162,7 +165,7 @@ class UAV:
             lidar_sensor.listen(lambda data: self.process_lidar(data))
 
         if self.rgb_sensors_active:
-            rgb_sensor.listen(lambda data: self.process_rgb("camera0", data))
+            rgb_sensor.listen(lambda data: self.process_rgb("camera4", data))
         
         self.lidar_sensor = lidar_sensor
         self.sensors.append(rgb_sensor)
@@ -189,16 +192,22 @@ class UAV:
     def process_lidar(self, data):
         # 暂存LiDAR数据
         self.sensor_queue.put((data, "lidar"))
+        if data.frame > UAV.max_frame:
+            UAV.max_frame = data.frame
         self.sensors_data_counter += 1
 
     def process_rgb(self, sensor_id, data):
         # 暂存RGB数据
         self.sensor_queue.put((data, sensor_id))
+        if data.frame > UAV.max_frame:
+            UAV.max_frame = data.frame
         self.sensors_data_counter += 1
 
     def process_segmentation(self, data):
         # 暂存语义分割数据
         self.sensor_queue.put((data, "segmentation"))
+        if data.frame > UAV.max_frame:
+            UAV.max_frame = data.frame
         self.sensors_data_counter += 1
 
 
@@ -375,12 +384,12 @@ class UAV:
         yaw = sensor_transform.rotation.yaw
         pitch = sensor_transform.rotation.pitch
 
-        pose = np.array([x, y, 0, roll, yaw, pitch])
-        # pose = np.array([x, y, 0, 0, 0, 0])
+        # pose = np.array([x, y, 0, roll, yaw, pitch])
+        pose = np.array([x, y, 0, 0, 0, 0])
 
         return pose
 
-    def check_and_save_all(self, vehicles):
+    def check_and_save_all(self, vehicles, current_tick):
         """
         保存参数到 YAML 文件。
         """
@@ -394,10 +403,6 @@ class UAV:
 
         try:
             data_list = list(self.sensor_queue.queue)
-            max_frame = 0
-            for i in data_list:
-                if i[0].frame > max_frame:
-                    max_frame = i[0].frame
 
             for _ in range(7):
                 data = self.sensor_queue.get(True, 1.0)
@@ -406,11 +411,11 @@ class UAV:
                     continue
 
                 if data[1] == "segmentation":
-                    self.save_segmentation(data[0], max_frame)
+                    self.save_segmentation(data[0], UAV.max_frame)
                 
                 elif data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.selfDir, f'{max_frame}.yaml')
+                    yaml_file = os.path.join(self.selfDir, f'{UAV.max_frame}.yaml')
 
                     self.lidar_data = data[0]
 
@@ -418,7 +423,7 @@ class UAV:
 
                     camera_params['lidar_pose'] = lidar_pose.tolist()
 
-                    self.save_lidar(data[0], max_frame)
+                    self.save_lidar(data[0], UAV.max_frame)
 
                 elif data[1] != "lidar":
                     camera_id = data[1]
@@ -435,7 +440,7 @@ class UAV:
                     }
 
                     # 保存相机图像
-                    self.save_image(data[0], camera_id, max_frame)
+                    self.save_image(data[0], camera_id, UAV.max_frame)
                 
             # 补全OPENCOOD的数据格式
             # camera_params['ego_speed'] = 0
@@ -617,13 +622,13 @@ class UAV:
         new_location = self.static_actor.get_location() + delta_location_with_noise
         self.static_actor.set_location(new_location)
 
-    def update(self,vehicles):
+    def update(self,vehicles, current_tick):
         """
         每次 tick 调用该方法来检查是否需要移动无人机。
 
         每次 tick 会统一处理并写入所有传感器的数据。
         """
-        self.check_and_save_all(vehicles)
+        self.check_and_save_all(vehicles, current_tick)
 
 
         if self.move_enabled:
