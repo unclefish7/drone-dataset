@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 # 定义文件夹路径
-DATASET_FOLDER = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03_run_1_2024_11_28_21_17_17\5'
+DATASET_FOLDER = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03_run_1_2024_12_05_20_03_34\3'
 
 # 遍历文件夹中的yaml文件
 def load_yaml(yaml_path):
@@ -44,41 +44,9 @@ def visualize_point_cloud(point_cloud, lidar_pose):
 def adjust_point_cloud_to_world(point_cloud, lidar_pose):
     # 将点云转换到世界坐标系，考虑激光雷达的位姿
     x, y, z, roll, yaw, pitch = lidar_pose
-    print(lidar_pose)
-    # 计算旋转矩阵
-    roll_rad = np.deg2rad(roll)
-    pitch_rad = -np.deg2rad(pitch)
-    yaw_rad = np.deg2rad(yaw)
-
-    # 计算绕 X 轴的旋转矩阵（Roll）
-    R_x = np.array([
-        [1, 0, 0],
-        [0, np.cos(roll_rad), -np.sin(roll_rad)],
-        [0, np.sin(roll_rad), np.cos(roll_rad)]
-    ])
-
-    # 计算绕 Y 轴的旋转矩阵（Pitch）
-    R_y = np.array([
-        [np.cos(pitch_rad), 0, np.sin(pitch_rad)],
-        [0, 1, 0],
-        [-np.sin(pitch_rad), 0, np.cos(pitch_rad)]
-    ])
-
-    # 计算绕 Z 轴的旋转矩阵（Yaw）
-    R_z = np.array([
-        [np.cos(yaw_rad), -np.sin(yaw_rad), 0],
-        [np.sin(yaw_rad), np.cos(yaw_rad), 0],
-        [0, 0, 1]
-    ])
-
-    # 组合旋转矩阵（ZYX 顺序）
-    rotation = R_z @ R_y @ R_x
-
-    # 先进行旋转
-    rotated_points = point_cloud @ rotation.T  # 点云乘以旋转矩阵
     
     # 再进行平移
-    translated_points = rotated_points + np.array([x, y, z])
+    translated_points = point_cloud + np.array([x, y, z])
     
     return translated_points
 
@@ -192,12 +160,16 @@ for frame_file in os.listdir(DATASET_FOLDER):
         if 'lidar_pose' in yaml_data:
             lidar_pose = yaml_data['lidar_pose']
 
-            visualize_point_cloud(point_cloud, lidar_pose=lidar_pose)
+            # visualize_point_cloud(point_cloud, lidar_pose=lidar_pose)
 
             # 调整点云基准点到世界坐标系
             point_cloud_world = point_cloud
+            point_cloud_world[:, 1] = -point_cloud_world[:, 1]
 
-            # visualize_point_cloud(point_cloud_world, lidar_pose=lidar_pose)
+            visualize_point_cloud(point_cloud_world, lidar_pose=lidar_pose)
+
+            # 调整点云到世界坐标系
+            point_cloud_world = adjust_point_cloud_to_world(point_cloud, lidar_pose)
 
             for cam_index in range(5):
                 image_path = os.path.join(DATASET_FOLDER, f"{frame}_camera{cam_index}.png")
