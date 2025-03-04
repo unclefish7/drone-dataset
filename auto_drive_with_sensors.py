@@ -195,7 +195,7 @@ def main(world_name, simulation_sec, save_Dir):
                 tick_count += 1
                 for uav in uavs:
                     vehicles = world.get_actors().filter('vehicle.*')
-                    uav.update(vehicles)
+                    uav.update(vehicles,tick_count)
             else:
                 world.wait_for_tick()
 
