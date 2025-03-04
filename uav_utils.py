@@ -225,6 +225,39 @@ class UAV:
             file_name = os.path.join(self.selfDir, f'{frame}_segmentation.png')
             data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
+            # 载入语义分割图像
+            segmentation_image = Image.open(file_name)
+
+            # 转换为 numpy 数组
+            segmentation_array = np.array(segmentation_image)
+
+            # 车辆颜色列表
+            vehicle_colors = [
+                [0, 0, 142],  # 乘用车
+                [0, 0, 70],  # 卡车
+                [0, 0, 230],  # 摩托车
+                [0, 60, 100],  # 公交车
+                [119, 11, 32],  # 自行车
+            ]
+
+            # 创建一个全黑的图像（保持与原图形状一致，4通道 RGBA）
+            black_image = np.zeros_like(segmentation_array)
+
+            # 遍历所有车辆颜色
+            for vehicle_color in vehicle_colors:
+                # 找到与当前车辆颜色匹配的区域
+                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)  # 只检查RGB通道
+
+                # 将车辆部分的 RGB 设置为白色，同时保持透明度通道不变
+                black_image[vehicle_mask, :3] = [255, 255, 255]  # 设置为白色
+                black_image[vehicle_mask, 3] = segmentation_array[vehicle_mask, 3]  # 保持透明度不变
+
+            # 创建新的图像并保存
+            output_image = Image.fromarray(black_image)
+            new_file_name = os.path.join(self.selfDir, f'{frame}_bev_visibility.png')
+            output_image.save(new_file_name)
+
+
     def save_image(self, image, direction, frame):
         """
         处理并保存传感器的图像数据。
