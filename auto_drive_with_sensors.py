@@ -239,7 +239,7 @@ if __name__ == '__main__':
             save_dir = os.path.join(base_dir, f"{args.town.lower()}_run_{i+1}_{time.strftime('%Y_%m_%d_%H_%M_%S')}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 1, save_dir)
+            main(args.town, 1, save_dir) # 1 second,可以随意更改
     except KeyboardInterrupt:
         pass
     finally:
