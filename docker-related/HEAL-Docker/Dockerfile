@@ -20,9 +20,12 @@ RUN git clone https://github.com/yifanlu0227/HEAL.git /root/HEAL
 
 # 设置工作目录
 WORKDIR /root
+
 # 先按照仓库里的教程一步步把前置装好（包括新开一个虚拟环境），再安装其他依赖
-# apt-get update && apt-get install -y libgl1-mesa-glx
-#
-# 最后运行的命令：
-# docker run --privileged --gpus all -it --name heal --shm-size=32G -v "D:\datasets":/root/HEAL/dataset heal-custom:v3
-#
+# apt-get update && apt-get install -y libgl1-mesa-glx （暂时不需要用）
+
+# 基于镜像运行容器的命令：
+# docker run --privileged --gpus all -it --name heal --shm-size=32G -v D:/datasets:/root/HEAL/dataset heal-custom:v5
+
+# 运行训练的命令
+# python opencood/tools/train.py -y opencood/hypes_yaml/opv2v/CameraOnly/camera_attfuse.yaml
