@@ -274,7 +274,13 @@ class UAV:
                 os.makedirs(self.selfDir)
             
             file_name = os.path.join(self.selfDir, f'{frame}_{direction}.png')
-            image.save_to_disk(file_name)
+            # 解析 BGRA 数据并转换为 RGB
+            array = np.frombuffer(image.raw_data, dtype=np.uint8).reshape((image.height, image.width, 4))
+            rgb_array = array[:, :, :3][:, :, ::-1]  # 去掉 Alpha 通道（BGRA → RGB）
+
+            # 保存为 RGB 格式的 PNG
+            img = Image.fromarray(rgb_array)
+            img.save(file_name)
 
     def save_lidar(self, image, frame):
         """
@@ -291,11 +297,10 @@ class UAV:
             # 提取 XYZ 坐标
             points = data[:, :3]
 
-            # points=self.local_to_world(points)
-            # 翻转 y 轴以匹配坐标系
-            # points[:, 0] += self.lidar_sensor.get_location().x
-            # points[:, 1] += self.lidar_sensor.get_location().y
-            points[:, 2] += self.lidar_sensor.get_location().z
+            points=self.local_to_world(points)
+            points[:, 0] -= self.lidar_sensor.get_location().x
+            points[:, 1] -= self.lidar_sensor.get_location().y
+            # points[:, 2] += self.lidar_sensor.get_location().z
 
 
             # 提取 intensity 信息
@@ -370,13 +375,13 @@ class UAV:
 
         # 提取位置信息
         x = sensor_transform.location.x
-        y = sensor_transform.location.y  # Y 轴取反
+        y = sensor_transform.location.y
         z = sensor_transform.location.z
 
         # 提取旋转信息（Roll、Pitch、Yaw 以度为单位）
-        roll_deg = sensor_transform.rotation.roll  # Roll 角取反
-        yaw_deg = sensor_transform.rotation.yaw    # Yaw 角取反
-        pitch_deg = sensor_transform.rotation.pitch # Pitch 角不变
+        roll_deg = sensor_transform.rotation.roll
+        yaw_deg = sensor_transform.rotation.yaw
+        pitch_deg = sensor_transform.rotation.pitch
 
         # 保存位姿
         pose = np.array([x, y, z, roll_deg, yaw_deg, pitch_deg])
@@ -418,7 +423,7 @@ class UAV:
         pitch = sensor_transform.rotation.pitch
 
         # pose = np.array([x, y, 0, roll, yaw, pitch])
-        pose = np.array([x, y, 0, 0, 0, 0])
+        pose = np.array([x, y, 0, 0, 0, 0]) # 激光雷达的高度设为0，并且是水平放置的
 
         return pose
 
