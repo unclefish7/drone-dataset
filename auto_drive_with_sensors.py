@@ -26,6 +26,9 @@ def get_actor_blueprints(world, filter_pattern):
 
 
 def main(world_name, simulation_sec, save_Dir):
+
+    random.seed(1)
+
     # 存储生成的车辆演员 ID，以便后续销毁
     vehicles_list = []
 
@@ -135,6 +138,7 @@ def main(world_name, simulation_sec, save_Dir):
         for n, transform in enumerate(spawn_points):
             if n >= desired_vehicle_number:
                 break
+            random.seed(n+1)
             blueprint = random.choice(blueprints)
             if blueprint.has_attribute('color'):
                 color = random.choice(blueprint.get_attribute('color').recommended_values)
@@ -186,6 +190,8 @@ def main(world_name, simulation_sec, save_Dir):
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0
+
+        # random.seed(1)
 
         while True:
 
