@@ -167,26 +167,35 @@ def main(world_name, simulation_sec, save_Dir):
         # ----------------- UAV 设置 -----------------
         uavs = []
 
-        # 创建第一个 UAV
-        # 随机选择一个路口位置作为第一个 UAV 的位置
-        # location1 = random.choice(junction_locations)
-        location1 = carla.Location(x=0, y=0, z=0)
-        location1.z += 50  # 提升 UAV 的高度
-        uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=0)
-        uavs.append(uav1)
+        # # 创建第一个 UAV
+        # # 随机选择一个路口位置作为第一个 UAV 的位置
+        # # location1 = random.choice(junction_locations)
+        # location1 = carla.Location(x=0, y=0, z=0)
+        # location1.z += 50  # 提升 UAV 的高度
+        # uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=0)
+        # uavs.append(uav1)
+        #
+        # # 随机生成4个 UAV
+        # for i in range(2, 6):
+        #     angle = random.uniform(0, 2 * np.pi)
+        #     radius = random.uniform(0, 50)
+        #     x_offset = radius * np.cos(angle)
+        #     y_offset = radius * np.sin(angle)
+        #     location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
+        #     yaw_angle = 0
+        #     uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
+        #     uavs.append(uav)
 
-        # 随机生成4个 UAV
-        for i in range(2, 6):
-            angle = random.uniform(0, 2 * np.pi)
-            radius = random.uniform(0, 50)
-            x_offset = radius * np.cos(angle)
-            y_offset = radius * np.sin(angle)
-            location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-            yaw_angle = 0
-            uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
+        test_points_town05 = [
+            carla.Location(x=-122, y=-44, z=50),
+            carla.Location(x=-157, y=-88, z=50),
+            carla.Location(x=-189, y=-43, z=50),
+            carla.Location(x=-155, y=1, z=50)
+        ]
+
+        for i in range(1, 5):
+            uav = UAV(world, test_points_town05[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
             uavs.append(uav)
-
-
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0
@@ -240,12 +249,14 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        # base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+
         for i in range(args.repetitions):
             save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 1, save_dir) # 1 second,可以随意更改
+            main(args.town, 20, save_dir) # 1 second,可以随意更改
     except KeyboardInterrupt:
         pass
     finally:
