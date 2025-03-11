@@ -25,7 +25,10 @@ WORKDIR /root
 # apt-get update && apt-get install -y libgl1-mesa-glx （暂时不需要用）
 
 # 基于镜像运行容器的命令：
-# docker run --privileged --gpus all -it --name heal --shm-size=32G -v D:/datasets:/root/HEAL/dataset heal-custom:v5
+# docker run --privileged --gpus all -it --name heal --shm-size=[your memory size] -v /your-dataset-dir:/root/HEAL/dataset your-image-name
+
+# 先切换虚拟环境
+# conda activate heal
 
 # 运行训练的命令
 # python opencood/tools/train.py -y opencood/hypes_yaml/opv2v/CameraOnly/camera_attfuse.yaml
