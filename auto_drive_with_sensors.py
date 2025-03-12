@@ -25,9 +25,9 @@ def get_actor_blueprints(world, filter_pattern):
     return world.get_blueprint_library().filter(filter_pattern)
 
 
-def main(world_name, simulation_sec, save_Dir):
+def main(world_name, simulation_sec, save_Dir, random_seed=0):
 
-    random.seed(1)
+    random.seed(random_seed)
 
     # 存储生成的车辆演员 ID，以便后续销毁
     vehicles_list = []
@@ -192,6 +192,12 @@ def main(world_name, simulation_sec, save_Dir):
             carla.Location(x=-189, y=-43, z=50),
             carla.Location(x=-155, y=1, z=50)
         ]
+        test_points_town03 = [
+            carla.Location(x=43, y=-134, z=20),
+            carla.Location(x=0, y=-85, z=20),
+            carla.Location(x=-45, y=0, z=20),
+            carla.Location(x=80, y=-85, z=30)
+        ]
 
         for i in range(1, 5):
             uav = UAV(world, test_points_town05[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
@@ -243,20 +249,21 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='CARLA Auto Drive with Sensors')
     parser.add_argument('--repetitions', type=int, required=True, help='Number of repetitions for data collection')
     parser.add_argument('--town', type=str, required=True, help='Name of the town map to use')
+    parser.add_argument('--random_seed', type=int, default=0, help='Random seed for the simulation')
     return parser.parse_args()
 
 args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        # base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
-        base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
 
         for i in range(args.repetitions):
             save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 20, save_dir) # 1 second,可以随意更改
+            main(args.town, 20, save_dir, args.random_seed+i+1) # 1 second,可以随意更改
     except KeyboardInterrupt:
         pass
     finally:
