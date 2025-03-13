@@ -199,9 +199,15 @@ def main(world_name, simulation_sec, save_Dir, random_seed=0):
             carla.Location(x=80, y=-85, z=30)
         ]
 
-        for i in range(1, 5):
-            uav = UAV(world, test_points_town05[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
-            uavs.append(uav)
+        if world_name == 'Town05':
+            for i in range(1, 5):
+                uav = UAV(world, test_points_town05[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
+                uavs.append(uav)
+
+        if world_name == 'Town03':
+            for i in range(1, 5):
+                uav = UAV(world, test_points_town03[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
+                uavs.append(uav)
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0
