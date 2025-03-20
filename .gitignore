@@ -6,3 +6,5 @@ _rgb_out/
 _dot_out/
 _yaml_out/
 dataset/
+.scannerwork/.sonar_lock
+.scannerwork/report-task.txt

@@ -262,7 +262,7 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = fr'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        base_dir = fr'C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
         # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
 
         for i in range(args.repetitions):

@@ -1,0 +1,9 @@
+# 核心依赖
+carla==0.9.13          # CARLA 模拟器 Python API（需从官方下载或自行编译，详见注释）
+numpy>=1.19.0          # 数组计算
+open3d>=0.15.1         # 3D 数据处理
+PyYAML>=5.4.1          # YAML 配置解析
+matplotlib>=3.3.4      # 数据可视化
+scipy>=1.6.0           # 科学计算（含 Rotation 模块）
+Pillow>=8.3.1          # 图像处理（PIL 的现代分支）
+opencv-python>=4.5.3   # OpenCV 图像处理（cv2）
