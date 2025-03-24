@@ -15,7 +15,7 @@ def print_spectator_location(world_snapshot):
 
 
 # 选择你想要的地图
-world = client.load_world_if_different('Town05')
+world = client.load_world_if_different('Town03')
 if not world:
     world = client.get_world()
 

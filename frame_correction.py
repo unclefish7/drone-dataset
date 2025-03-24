@@ -45,8 +45,6 @@ def unify_frames(root_dir: str, dry_run: bool = False) -> List[Dict]:
             
             # 处理其他无人机目录
             for drone_path, drone_id in drone_dirs:
-                if drone_id == base_drone[1]:
-                    continue
                 
                 log_entries = process_drone_dir(
                     drone_path, base_yaml_frames, scene_path.name, drone_id, dry_run

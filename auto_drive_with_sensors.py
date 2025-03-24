@@ -25,7 +25,7 @@ def get_actor_blueprints(world, filter_pattern):
     return world.get_blueprint_library().filter(filter_pattern)
 
 
-def main(world_name, simulation_sec, save_Dir, random_seed=0):
+def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
 
     random.seed(random_seed)
 
@@ -90,14 +90,14 @@ def main(world_name, simulation_sec, save_Dir, random_seed=0):
         }
 
         # 自定义天气参数（当前未使用）
-        custom_weather = carla.WeatherParameters(
-            cloudiness=80.0,             # 云量
-            precipitation=30.0,          # 降水量
-            precipitation_deposits=30.0, # 降水积累
-            wind_intensity=10.0,         # 风力强度
-            sun_azimuth_angle=90.0,      # 太阳方位角
-            sun_altitude_angle=45.0      # 太阳高度角
-        )
+        # custom_weather = carla.WeatherParameters(
+        #     cloudiness=80.0,             # 云量
+        #     precipitation=30.0,          # 降水量
+        #     precipitation_deposits=30.0, # 降水积累
+        #     wind_intensity=10.0,         # 风力强度
+        #     sun_azimuth_angle=90.0,      # 太阳方位角
+        #     sun_altitude_angle=45.0      # 太阳高度角
+        # )
 
         # 选择并设置天气预设
         selected_weather = "ClearSunset"
@@ -105,8 +105,8 @@ def main(world_name, simulation_sec, save_Dir, random_seed=0):
 
         # ----------------- 地图设置 -----------------
         # 获取所有路口
-        junctions = world.get_map().get_topology()
-        junction_locations = [junction[0].transform.location for junction in junctions]
+        # junctions = world.get_map().get_topology()
+        # junction_locations = [junction[0].transform.location for junction in junctions]
 
         # 打印所有路口的位置
         # for i, location in enumerate(junction_locations):
@@ -158,7 +158,6 @@ def main(world_name, simulation_sec, save_Dir, random_seed=0):
                 print(response.error)
             else:
                 vehicles_list.append(response.actor_id)
-                vehicle = world.get_actor(response.actor_id)
 
         traffic_manager.set_global_distance_to_leading_vehicle(0)  # 设置车辆间距
         traffic_manager.global_percentage_speed_difference(-99)      # 设置全局速度差异
@@ -166,48 +165,9 @@ def main(world_name, simulation_sec, save_Dir, random_seed=0):
 
         # ----------------- UAV 设置 -----------------
         uavs = []
-
-        # # 创建第一个 UAV
-        # # 随机选择一个路口位置作为第一个 UAV 的位置
-        # # location1 = random.choice(junction_locations)
-        # location1 = carla.Location(x=0, y=0, z=0)
-        # location1.z += 50  # 提升 UAV 的高度
-        # uav1 = UAV(world, location1, uav_id=1, rootDir=save_Dir, yaw_angle=0)
-        # uavs.append(uav1)
-        #
-        # # 随机生成4个 UAV
-        # for i in range(2, 6):
-        #     angle = random.uniform(0, 2 * np.pi)
-        #     radius = random.uniform(0, 50)
-        #     x_offset = radius * np.cos(angle)
-        #     y_offset = radius * np.sin(angle)
-        #     location = carla.Location(x=location1.x + x_offset, y=location1.y + y_offset, z=location1.z)
-        #     yaw_angle = 0
-        #     uav = UAV(world, location, uav_id=i, rootDir=save_Dir, yaw_angle=yaw_angle)
-        #     uavs.append(uav)
-
-        test_points_town05 = [
-            carla.Location(x=-122, y=-44, z=50),
-            carla.Location(x=-157, y=-88, z=50),
-            carla.Location(x=-189, y=-43, z=50),
-            carla.Location(x=-155, y=1, z=50)
-        ]
-        test_points_town03 = [
-            carla.Location(x=43, y=-134, z=20),
-            carla.Location(x=0, y=-85, z=20),
-            carla.Location(x=-45, y=0, z=20),
-            carla.Location(x=80, y=-85, z=30)
-        ]
-
-        if world_name == 'Town05':
-            for i in range(1, 5):
-                uav = UAV(world, test_points_town05[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
-                uavs.append(uav)
-
-        if world_name == 'Town03':
-            for i in range(1, 5):
-                uav = UAV(world, test_points_town03[i-1], uav_id=i, rootDir=save_Dir, yaw_angle=0)
-                uavs.append(uav)
+        for i, location in enumerate(locations):
+            uav = UAV(world, location, uav_id=i+1, rootDir=save_dir, yaw_angle=0)
+            uavs.append(uav)
 
         # ----------------- 开始模拟 -----------------
         tick_count = 0
@@ -262,14 +222,48 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = fr'C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        base_dir = r'C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
         # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+
+        test_points = {
+            'Town05': [
+                carla.Location(x=-122, y=-44, z=50),
+                carla.Location(x=-157, y=-88, z=50),
+                carla.Location(x=-189, y=-43, z=50),
+                carla.Location(x=-155, y=1, z=50)
+            ],
+            'Town03': [
+                carla.Location(x=43, y=-134, z=30),
+                carla.Location(x=0, y=-85, z=30),
+                carla.Location(x=-45, y=0, z=30),
+                carla.Location(x=80, y=-85, z=30)
+            ],
+            'Town03_2': [
+                carla.Location(x=0, y=0, z=50),
+                carla.Location(x=0, y=-50, z=50),
+                carla.Location(x=0, y=50, z=50),
+                carla.Location(x=50, y=0, z=50)
+            ],
+            'Town03_3': [
+                carla.Location(x=0, y=133, z=40),
+                carla.Location(x=0, y=183, z=40),
+                carla.Location(x=0, y=83, z=40),
+                carla.Location(x=50, y=133, z=40)
+            ],
+            'Town03_4': [
+                carla.Location(x=-85, y=0, z=40),
+                carla.Location(x=-40, y=0, z=40),
+                carla.Location(x=-85, y=-50, z=40),
+                carla.Location(x=-126, y=14, z=50)
+            ]
+        }
 
         for i in range(args.repetitions):
             save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")
             os.makedirs(save_dir, exist_ok=True)
             print(f"Running iteration {i+1} on {args.town}")
-            main(args.town, 20, save_dir, args.random_seed+i+1) # 1 second,可以随意更改
+            town_name = args.town.split('_')[0] if '_' in args.town else args.town
+            main(town_name, 20, save_dir, test_points[args.town], args.random_seed+i+1) # 1 second,可以随意更改
     except KeyboardInterrupt:
         pass
     finally:
