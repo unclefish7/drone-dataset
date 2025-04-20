@@ -3,10 +3,10 @@ FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 
 # 更新软件包并安装 wget、git、Python3 和 pip
 RUN apt-get update && apt-get install -y \
-    wget \
     git \
     python3 \
     python3-pip \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Miniconda
@@ -25,13 +25,7 @@ WORKDIR /root
 # apt-get update && apt-get install -y libgl1-mesa-glx （暂时不需要用）
 
 # 基于镜像运行容器的命令：
-# docker run --privileged --gpus all -it --name heal \
-# --shm-size=[your memory size] \
-# -v /your-dataset-dir:/root/HEAL/dataset \
-# -e DISPLAY=192.168.1.88:0.0 \
-# -e LIBGL_ALWAYS_INDIRECT=1 \
-# -v /tmp/.X11-unix:/tmp/.X11-unix \
-# your-image-name
+# docker run --privileged --gpus all -it --name heal-new --shm-size=32G -v E:\datasets:/root/HEAL/dataset -e DISPLAY=192.168.1.88:0.0 -e LIBGL_ALWAYS_INDIRECT=1 -v /tmp/.X11-unix:/tmp/.X11-unix heal-opencood:v7
 
 # 先切换虚拟环境
 # conda activate heal

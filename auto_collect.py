@@ -12,9 +12,9 @@ if __name__ == "__main__":
     script_name = "auto_drive_with_sensors.py"
     scripts_with_args = [
         # (script_name, ["--repetitions", "10", "--town", "Town03", "--random_seed", "0"]),
-        # (script_name, ["--repetitions", "10", "--town", "Town03_2", "--random_seed", "0"]),
-        # (script_name, ["--repetitions", "10", "--town", "Town03_3", "--random_seed", "0"]),
-        (script_name, ["--repetitions", "5", "--town", "Town03_4", "--random_seed", "0"]),
+        (script_name, ["--repetitions", "1", "--town", "Town03_2", "--random_seed", "0"]),
+        # (script_name, ["--repetitions", "5", "--town", "Town03_3", "--random_seed", "0"]),
+        # (script_name, ["--repetitions", "5", "--town", "Town03_4", "--random_seed", "0"]),
         # (script_name, ["--repetitions", "10", "--town", "Town05", "--random_seed", "0"]),
     ]
     run_scripts_with_args(current_directory, scripts_with_args)

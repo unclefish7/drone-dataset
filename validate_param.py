@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 # 定义文件夹路径
-DATASET_FOLDER = r'C:\Users\uncle\_Projects\Carla\CARLA_Latest\WindowsNoEditor\myDemo\dataset\town03_run_1_2024_12_05_20_03_34\3'
+DATASET_FOLDER = r'C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\dataset\2025_04_02_19_19_37\1'
 
 # 遍历文件夹中的yaml文件
 def load_yaml(yaml_path):
