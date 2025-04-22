@@ -116,10 +116,15 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
 
         desired_vehicle_number = 100  # 想要生成的车辆数量
 
-        # 获取车辆蓝图
+        # 获取车辆蓝图，仅选择中大型车辆
         blueprints = get_actor_blueprints(world, 'vehicle.*')
+        blueprints = [bp for bp in blueprints if not bp.id.startswith((
+            'vehicle.bh.crossbike', 'vehicle.diamondback.century', 'vehicle.gazelle.omafiets',
+            'vehicle.harley-davidson.low_rider', 'vehicle.kawasaki.ninja', 'vehicle.vespa.zx125', 'vehicle.yamaha.yzf',
+            'vehicle.micro.microlino', 'vehicle.mini.cooper_s', 'vehicle.mini.cooper_s_2021', 'vehicle.nissan.micra'
+        ))]
         if not blueprints:
-            raise ValueError("Couldn't find any vehicles with the specified filters")
+            raise ValueError("Couldn't find any suitable vehicles with the specified filters")
 
         # 获取可用的出生点
         spawn_points = world.get_map().get_spawn_points()
