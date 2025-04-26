@@ -35,8 +35,8 @@ foreach ($task in $taskList) {
         $randomSeed = $i + 1  # 可以自定义种子生成逻辑
         python $pythonScript --town $town --random_seed $randomSeed
 
-        # 3. 关闭exe
-        Stop-Process -Id $exeProcess.Id -Force
+        # 3. 关闭exe（名字中包含CarlaUE4的全部杀掉）
+        Get-Process | Where-Object { $_.Name -like "*CarlaUE4*" } | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 5
     }
 }

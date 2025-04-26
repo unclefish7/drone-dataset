@@ -701,7 +701,7 @@ class UAV:
         """
         清理资源，销毁传感器和静态演员。
         """
-        time.sleep(1)
+        # time.sleep(1)
 
         # 销毁所有传感器
         for sensor in self.sensors:

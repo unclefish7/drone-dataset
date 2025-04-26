@@ -200,7 +200,7 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
 
     finally:
         # ----------------- 资源清理 -----------------
-        time.sleep(5)
+        # time.sleep(5)
         # 恢复世界设置
         if synchronous_mode and world:
             settings = world.get_settings()
@@ -211,14 +211,14 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
             world.apply_settings(settings)
 
         # 销毁车辆演员
-        time.sleep(5)
+        # time.sleep(5)
         client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])
 
         # 销毁 UAV
         for uav in uavs:
             uav.destroy()
-            time.sleep(2)
-        time.sleep(5)
+            # time.sleep(2)
+        # time.sleep(5)
 
 
 def parse_arguments():
