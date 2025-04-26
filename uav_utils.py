@@ -21,7 +21,7 @@ class RGBData:
 
 class UAV:
     max_frame = 0
-    def __init__(self, world, location, uav_id, rootDir, yaw_angle=0):
+    def __init__(self, world, location, uav_id, root_dir, yaw_angle=0):
         """
         初始化 UAV 类。
 
@@ -37,8 +37,8 @@ class UAV:
         self.uav_id = uav_id  # 无人机的唯一 ID
 
         # 数据保存的根目录
-        self.rootDir = rootDir
-        self.selfDir = os.path.join(self.rootDir, str(self.uav_id))
+        self.root_dir = root_dir
+        self.self_dir = os.path.join(self.rootDir, str(self.uav_id))
 
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
@@ -126,28 +126,28 @@ class UAV:
         lidar_blueprint = self.world.get_blueprint_library().find('sensor.lidar.ray_cast')
 
         # ---------------------------------------------------------------
-        lidar_blueprint.set_attribute("channels", '128')
-        lidar_blueprint.set_attribute('range', '75.0')
-        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        lidar_blueprint.set_attribute('horizontal_fov', '90.0')
-        lidar_blueprint.set_attribute('upper_fov', '45.0')
-        lidar_blueprint.set_attribute('lower_fov', '-45.0')
-        lidar_blueprint.set_attribute('points_per_second', '2500000')
-        lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
-        # 设置激光雷达的变换
-        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
-
-        # ---------------------------------------------------------------
-        # lidar_blueprint.set_attribute("channels", '256')
-        # lidar_blueprint.set_attribute('range', '100.0')
+        # lidar_blueprint.set_attribute("channels", '128')
+        # lidar_blueprint.set_attribute('range', '75.0')
         # lidar_blueprint.set_attribute('rotation_frequency', '100.0')
-        # lidar_blueprint.set_attribute('horizontal_fov', '360.0')
-        # lidar_blueprint.set_attribute('upper_fov', '0.0')
-        # lidar_blueprint.set_attribute('lower_fov', '-90.0')
-        # lidar_blueprint.set_attribute('points_per_second', '100000000')
+        # lidar_blueprint.set_attribute('horizontal_fov', '90.0')
+        # lidar_blueprint.set_attribute('upper_fov', '45.0')
+        # lidar_blueprint.set_attribute('lower_fov', '-45.0')
+        # lidar_blueprint.set_attribute('points_per_second', '2500000')
         # lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
         # # 设置激光雷达的变换
-        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
+        # lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=-90))
+
+        # ---------------------------------------------------------------
+        lidar_blueprint.set_attribute("channels", '256')
+        lidar_blueprint.set_attribute('range', '100.0')
+        lidar_blueprint.set_attribute('rotation_frequency', '100.0')
+        lidar_blueprint.set_attribute('horizontal_fov', '360.0')
+        lidar_blueprint.set_attribute('upper_fov', '0.0')
+        lidar_blueprint.set_attribute('lower_fov', '-90.0')
+        lidar_blueprint.set_attribute('points_per_second', '25000000')
+        lidar_blueprint.set_attribute('sensor_tick', str(capture_intervals))
+        # 设置激光雷达的变换
+        lidar_transform = carla.Transform(carla.Location(x=0, y=0, z=-1), carla.Rotation(pitch=0))
 
         # -----------------------------------------------------------------
         lidar_sensor = self.world.spawn_actor(lidar_blueprint, lidar_transform, self.static_actor)
@@ -223,9 +223,9 @@ class UAV:
         """
         # 生成文件名并保存图像
         if data != None:
-            if not os.path.exists(self.selfDir):
-                os.makedirs(self.selfDir)
-            file_name = os.path.join(self.selfDir, f'{frame}_segmentation.png')
+            if not os.path.exists(self.self_dir):
+                os.makedirs(self.self_dir)
+            file_name = os.path.join(self.self_dir, f'{frame}_segmentation.png')
             data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
             # 载入语义分割图像
@@ -257,8 +257,8 @@ class UAV:
 
             # 创建新的图像并保存
             output_image = Image.fromarray(black_image)
-            new_file_name = os.path.join(self.selfDir, f'{frame}_bev_visibility.png')
-            output_image.save(new_file_name)
+            new_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility.png')
+            # output_image.save(new_file_name)
 
 
     def save_image(self, image, direction, frame):
@@ -273,17 +273,17 @@ class UAV:
         if image != None:
             # 检查目录是否存在，如果不存在则创建
 
-            if not os.path.exists(self.selfDir):
-                os.makedirs(self.selfDir)
+            if not os.path.exists(self.self_dir):
+                os.makedirs(self.self_dir)
             
-            file_name = os.path.join(self.selfDir, f'{frame}_{direction}.png')
+            file_name = os.path.join(self.self_dir, f'{frame}_{direction}.png')
             # 解析 BGRA 数据并转换为 RGB
             array = np.frombuffer(image.raw_data, dtype=np.uint8).reshape((image.height, image.width, 4))
             rgb_array = array[:, :, :3][:, :, ::-1]  # 去掉 Alpha 通道（BGRA → RGB）
 
             # 保存为 RGB 格式的 PNG
             img = Image.fromarray(rgb_array)
-            img.save(file_name)
+            # img.save(file_name)
 
     def save_lidar(self, image, frame):
         """
@@ -321,9 +321,9 @@ class UAV:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
             pcd.colors = o3d.utility.Vector3dVector(colors)
-            if not os.path.exists(self.selfDir):
-                os.makedirs(self.selfDir)
-            pcd_file_name = os.path.join(self.selfDir, f'{frame}.pcd')
+            if not os.path.exists(self.self_dir):
+                os.makedirs(self.self_dir)
+            pcd_file_name = os.path.join(self.self_dir, f'{frame}.pcd')
             o3d.io.write_point_cloud(pcd_file_name, pcd)
 
     def get_intrinsics(self):
@@ -391,21 +391,21 @@ class UAV:
 
         # 将欧拉角直接转换为旋转矩阵（使用四元数避免万向节锁）
         # 使用 CARLA 提供的函数获取旋转矩阵
-        T_sensor_to_world = np.array(sensor_transform.get_matrix())  # 获取齐次变换矩阵
-        rotation_matrix = T_sensor_to_world[:3, :3]  # 提取传感器到世界的旋转矩阵
+        t_sensor_to_world = np.array(sensor_transform.get_matrix())  # 获取齐次变换矩阵
+        rotation_matrix = t_sensor_to_world[:3, :3]  # 提取传感器到世界的旋转矩阵
 
         # 计算从世界到传感器的旋转矩阵
-        R_world_to_sensor = rotation_matrix.T  # 旋转矩阵的转置
+        r_world_to_sensor = rotation_matrix.T  # 旋转矩阵的转置
 
         # 定义 CARLA 坐标系到相机坐标系的转换矩阵
-        R_carla_to_camera = np.array([
+        r_carla_to_camera = np.array([
             [0, -1,  0],  # Y -> -X
             [0,  0, -1],  # Z -> -Y
             [1,  0,  0]   # X -> Z
         ])
 
         # 将 CARLA 坐标系旋转转换为相机坐标系
-        R = R_carla_to_camera @ R_world_to_sensor
+        R = r_carla_to_camera @ r_world_to_sensor
 
         # 构建 4x4 外参矩阵
         extrinsics = np.eye(4)
@@ -419,18 +419,18 @@ class UAV:
 
         x = sensor_transform.location.x
         y = sensor_transform.location.y
-        z = sensor_transform.location.z
+        # z = sensor_transform.location.z
 
-        roll = sensor_transform.rotation.roll
-        yaw = sensor_transform.rotation.yaw
-        pitch = sensor_transform.rotation.pitch
+        # roll = sensor_transform.rotation.roll
+        # yaw = sensor_transform.rotation.yaw
+        # pitch = sensor_transform.rotation.pitch
 
         # pose = np.array([x, y, 0, roll, yaw, pitch])
         pose = np.array([x, y, 0, 0, 0, 0]) # 激光雷达的高度设为0，并且是水平放置的
 
         return pose
 
-    def check_and_save_all(self, vehicles, current_tick):
+    def check_and_save_all(self, vehicles):
         """
         保存参数到 YAML 文件。
         """
@@ -443,7 +443,7 @@ class UAV:
             return
 
         try:
-            data_list = list(self.sensor_queue.queue)
+            # data_list = list(self.sensor_queue.queue)
 
             for _ in range(7):
                 data = self.sensor_queue.get(True, 1.0)
@@ -456,7 +456,7 @@ class UAV:
                 
                 elif data[1] == "lidar":
                     # 生成 YAML 文件的路径
-                    yaml_file = os.path.join(self.selfDir, f'{UAV.max_frame}.yaml')
+                    yaml_file = os.path.join(self.self_dir, f'{UAV.max_frame}.yaml')
 
                     self.lidar_data = data[0]
 
@@ -669,7 +669,7 @@ class UAV:
 
         每次 tick 会统一处理并写入所有传感器的数据。
         """
-        self.check_and_save_all(vehicles, current_tick)
+        self.check_and_save_all(vehicles)
 
 
         if self.move_enabled:
@@ -679,8 +679,8 @@ class UAV:
                 self.move()
 
     # 设置各种参数的函数
-    def set_rootDir(self, newDir):
-        self.rootDir = newDir
+    def set_root_dir(self, new_dir):
+        self.root_dir = new_dir
 
     def set_sensors_capture_intervals(self, intervals):
         self.sensors_capture_intervals = intervals
