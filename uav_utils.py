@@ -38,7 +38,7 @@ class UAV:
 
         # 数据保存的根目录
         self.root_dir = root_dir
-        self.self_dir = os.path.join(self.rootDir, str(self.uav_id))
+        self.self_dir = os.path.join(self.root_dir, str(self.uav_id))
 
         self.static_actor = None  # 静态演员，表示无人机的位置
         self.sensors = []         # 存储所有传感器的列表
@@ -222,43 +222,43 @@ class UAV:
         - data：传感器返回的语义分割图像数据。
         """
         # 生成文件名并保存图像
-        if data != None:
-            if not os.path.exists(self.self_dir):
-                os.makedirs(self.self_dir)
-            file_name = os.path.join(self.self_dir, f'{frame}_segmentation.png')
-            data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
+        # if data != None:
+        #     if not os.path.exists(self.self_dir):
+        #         os.makedirs(self.self_dir)
+        #     file_name = os.path.join(self.self_dir, f'{frame}_segmentation.png')
+        #     data.save_to_disk(file_name, carla.ColorConverter.CityScapesPalette)
 
-            # 载入语义分割图像
-            segmentation_image = Image.open(file_name)
+        #     # 载入语义分割图像
+        #     segmentation_image = Image.open(file_name)
 
-            # 转换为 numpy 数组
-            segmentation_array = np.array(segmentation_image)
+        #     # 转换为 numpy 数组
+        #     segmentation_array = np.array(segmentation_image)
 
-            # 车辆颜色列表
-            vehicle_colors = [
-                [0, 0, 142],  # 乘用车
-                [0, 0, 70],  # 卡车
-                [0, 0, 230],  # 摩托车
-                [0, 60, 100],  # 公交车
-                [119, 11, 32],  # 自行车
-            ]
+        #     # 车辆颜色列表
+        #     vehicle_colors = [
+        #         [0, 0, 142],  # 乘用车
+        #         [0, 0, 70],  # 卡车
+        #         [0, 0, 230],  # 摩托车
+        #         [0, 60, 100],  # 公交车
+        #         [119, 11, 32],  # 自行车
+        #     ]
 
-            # 创建一个全黑的图像（保持与原图形状一致，4通道 RGBA）
-            black_image = np.zeros_like(segmentation_array)
+        #     # 创建一个全黑的图像（保持与原图形状一致，4通道 RGBA）
+        #     black_image = np.zeros_like(segmentation_array)
 
-            # 遍历所有车辆颜色
-            for vehicle_color in vehicle_colors:
-                # 找到与当前车辆颜色匹配的区域
-                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)  # 只检查RGB通道
+        #     # 遍历所有车辆颜色
+        #     for vehicle_color in vehicle_colors:
+        #         # 找到与当前车辆颜色匹配的区域
+        #         vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)  # 只检查RGB通道
 
-                # 将车辆部分的 RGB 设置为白色，同时保持透明度通道不变
-                black_image[vehicle_mask, :3] = [255, 255, 255]  # 设置为白色
-                black_image[vehicle_mask, 3] = segmentation_array[vehicle_mask, 3]  # 保持透明度不变
+        #         # 将车辆部分的 RGB 设置为白色，同时保持透明度通道不变
+        #         black_image[vehicle_mask, :3] = [255, 255, 255]  # 设置为白色
+        #         black_image[vehicle_mask, 3] = segmentation_array[vehicle_mask, 3]  # 保持透明度不变
 
-            # 创建新的图像并保存
-            output_image = Image.fromarray(black_image)
-            new_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility.png')
-            # output_image.save(new_file_name)
+        #     # 创建新的图像并保存
+        #     output_image = Image.fromarray(black_image)
+        #     new_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility.png')
+        #     output_image.save(new_file_name)
 
 
     def save_image(self, image, direction, frame):
@@ -270,20 +270,20 @@ class UAV:
         - direction：图像的方向标签。
         """
         # 生成文件名并保存图像
-        if image != None:
-            # 检查目录是否存在，如果不存在则创建
+        # if image != None:
+        #     # 检查目录是否存在，如果不存在则创建
 
-            if not os.path.exists(self.self_dir):
-                os.makedirs(self.self_dir)
+        #     if not os.path.exists(self.self_dir):
+        #         os.makedirs(self.self_dir)
             
-            file_name = os.path.join(self.self_dir, f'{frame}_{direction}.png')
-            # 解析 BGRA 数据并转换为 RGB
-            array = np.frombuffer(image.raw_data, dtype=np.uint8).reshape((image.height, image.width, 4))
-            rgb_array = array[:, :, :3][:, :, ::-1]  # 去掉 Alpha 通道（BGRA → RGB）
+        #     file_name = os.path.join(self.self_dir, f'{frame}_{direction}.png')
+        #     # 解析 BGRA 数据并转换为 RGB
+        #     array = np.frombuffer(image.raw_data, dtype=np.uint8).reshape((image.height, image.width, 4))
+        #     rgb_array = array[:, :, :3][:, :, ::-1]  # 去掉 Alpha 通道（BGRA → RGB）
 
-            # 保存为 RGB 格式的 PNG
-            img = Image.fromarray(rgb_array)
-            # img.save(file_name)
+        #     # 保存为 RGB 格式的 PNG
+        #     img = Image.fromarray(rgb_array)
+        #     img.save(file_name)
 
     def save_lidar(self, image, frame):
         """

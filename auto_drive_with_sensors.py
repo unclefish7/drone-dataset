@@ -114,15 +114,16 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
 
         # ----------------- 交通设置 -----------------
 
-        desired_vehicle_number = 100  # 想要生成的车辆数量
+        desired_vehicle_number = 150  # 想要生成的车辆数量
 
         # 获取车辆蓝图，仅选择中大型车辆
         blueprints = get_actor_blueprints(world, 'vehicle.*')
-        blueprints = [bp for bp in blueprints if not bp.id.startswith((
-            'vehicle.bh.crossbike', 'vehicle.diamondback.century', 'vehicle.gazelle.omafiets',
-            'vehicle.harley-davidson.low_rider', 'vehicle.kawasaki.ninja', 'vehicle.vespa.zx125', 'vehicle.yamaha.yzf',
-            'vehicle.micro.microlino', 'vehicle.mini.cooper_s', 'vehicle.mini.cooper_s_2021', 'vehicle.nissan.micra'
-        ))]
+        # blueprints = [bp for bp in blueprints if not bp.id.startswith((
+        #     'vehicle.bh.crossbike', 'vehicle.diamondback.century', 'vehicle.gazelle.omafiets',
+        #     'vehicle.harley-davidson.low_rider', 'vehicle.kawasaki.ninja', 'vehicle.vespa.zx125', 'vehicle.yamaha.yzf',
+        #     'vehicle.micro.microlino', 'vehicle.mini.cooper_s', 'vehicle.mini.cooper_s_2021', 'vehicle.nissan.micra'
+        # ))]
+        blueprints = [bp for bp in blueprints if bp.id == 'vehicle.audi.a2']
         if not blueprints:
             raise ValueError("Couldn't find any suitable vehicles with the specified filters")
 
@@ -171,7 +172,7 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
         # ----------------- UAV 设置 -----------------
         uavs = []
         for i, location in enumerate(locations):
-            uav = UAV(world, location, uav_id=i+1, rootDir=save_dir, yaw_angle=0)
+            uav = UAV(world, location, uav_id=i+1, root_dir=save_dir, yaw_angle=0)
             uavs.append(uav)
 
         # ----------------- 开始模拟 -----------------
@@ -222,7 +223,6 @@ def main(world_name, simulation_sec, save_dir, locations, random_seed=0):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='CARLA Auto Drive with Sensors')
-    parser.add_argument('--repetitions', type=int, required=True, help='Number of repetitions for data collection')
     parser.add_argument('--town', type=str, required=True, help='Name of the town map to use')
     parser.add_argument('--random_seed', type=int, default=0, help='Random seed for the simulation')
     return parser.parse_args()
@@ -267,12 +267,12 @@ if __name__ == '__main__':
             ]
         }
 
-        for i in range(args.repetitions):
-            save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")
-            os.makedirs(save_dir, exist_ok=True)
-            print(f"Running iteration {i+1} on {args.town}")
-            town_name = args.town.split('_')[0] if '_' in args.town else args.town
-            main(town_name, 20, save_dir, test_points[args.town], args.random_seed+i+1) # 1 second,可以随意更改
+        save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")
+        os.makedirs(save_dir, exist_ok=True)
+
+        print(f"Running on {args.town}")
+        town_name = args.town.split('_')[0] if '_' in args.town else args.town
+        main(town_name, 20, save_dir, test_points[args.town], args.random_seed)
     except KeyboardInterrupt:
         pass
     finally:
