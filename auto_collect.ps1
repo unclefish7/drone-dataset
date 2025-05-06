@@ -4,7 +4,7 @@ $pythonScript = "C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\
 
 # 每组任务配置：Town名 和 要跑几次
 $taskList = @(
-    @{ Town = "Town03_2"; Repetitions = 5 },
+    # @{ Town = "Town03_2"; Repetitions = 5 },
     @{ Town = "Town03_3"; Repetitions = 5 },
     @{ Town = "Town03_4"; Repetitions = 5 }
 )
@@ -28,7 +28,7 @@ foreach ($task in $taskList) {
         Write-Host ""
 
         # 1. 启动exe
-        $exeProcess = Start-Process -FilePath $exePath -PassThru
+        Start-Process -FilePath $exePath -PassThru
         Start-Sleep -Seconds 5
 
         # 2. 运行Python脚本（不带repetitions，只传town和随机种子）
