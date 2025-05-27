@@ -231,39 +231,57 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = r'C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
+        base_dir = r'E:\datasets\mydataset_OPV2V_new\train'
         # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
 
         test_points = {
             'Town05': [
-                carla.Location(x=-122, y=-44, z=50),
-                carla.Location(x=-157, y=-88, z=50),
-                carla.Location(x=-189, y=-43, z=50),
-                carla.Location(x=-155, y=1, z=50)
+                carla.Location(x=-122, y=-44, z=15),
+                carla.Location(x=-157, y=-88, z=15),
+                carla.Location(x=-189, y=-43, z=15),
+                carla.Location(x=-155, y=1, z=15)
+            ],
+            'Town05_2': [
+                carla.Location(x=-50, y=0, z=15),
+                carla.Location(x=-100, y=0, z=15),
+                carla.Location(x=-20, y=0, z=15),
+                carla.Location(x=-50, y=45, z=15)
+            ],
+            'Town05_3': [
+                carla.Location(x=-125, y=150, z=15),
+                carla.Location(x=-125, y=90, z=15),
+                carla.Location(x=-45, y=105, z=15),
+                carla.Location(x=-190, y=125, z=15)
             ],
             'Town03': [
-                carla.Location(x=43, y=-134, z=30),
-                carla.Location(x=0, y=-85, z=30),
-                carla.Location(x=-45, y=0, z=30),
-                carla.Location(x=80, y=-85, z=30)
+                carla.Location(x=43, y=-134, z=15),
+                carla.Location(x=0, y=-85, z=15),
+                carla.Location(x=-45, y=0, z=15),
+                carla.Location(x=80, y=-85, z=15)
             ],
             'Town03_2': [
-                carla.Location(x=0, y=0, z=50),
-                carla.Location(x=0, y=-50, z=50),
-                carla.Location(x=0, y=50, z=50),
-                carla.Location(x=50, y=0, z=50)
+                carla.Location(x=0, y=0, z=15),
+                carla.Location(x=0, y=-50, z=15),
+                carla.Location(x=0, y=50, z=15),
+                carla.Location(x=50, y=0, z=15)
             ],
             'Town03_3': [
-                carla.Location(x=0, y=133, z=40),
-                carla.Location(x=0, y=183, z=40),
-                carla.Location(x=0, y=83, z=40),
-                carla.Location(x=50, y=133, z=40)
+                carla.Location(x=0, y=133, z=15),
+                carla.Location(x=0, y=183, z=15),
+                carla.Location(x=0, y=83, z=15),
+                carla.Location(x=50, y=133, z=15)
             ],
             'Town03_4': [
-                carla.Location(x=-85, y=0, z=40),
-                carla.Location(x=-40, y=0, z=40),
-                carla.Location(x=-85, y=-50, z=40),
-                carla.Location(x=-126, y=14, z=50)
+                carla.Location(x=-85, y=0, z=15),
+                carla.Location(x=-40, y=0, z=15),
+                carla.Location(x=-85, y=-50, z=15),
+                carla.Location(x=-126, y=14, z=15)
+            ],
+            'Town03_5': [
+                carla.Location(x=171, y=60, z=15),
+                carla.Location(x=150, y=130, z=15),
+                carla.Location(x=235, y=-60, z=15),
+                carla.Location(x=115, y=60, z=15)
             ]
         }
 

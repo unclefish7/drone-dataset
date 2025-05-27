@@ -4,9 +4,14 @@ $pythonScript = "C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\
 
 # 每组任务配置：Town名 和 要跑几次
 $taskList = @(
-    # @{ Town = "Town03_2"; Repetitions = 5 },
-    @{ Town = "Town03_3"; Repetitions = 5 },
-    @{ Town = "Town03_4"; Repetitions = 5 }
+    # @{ Town = "Town05"; Repetitions = 6 },
+    # @{ Town = "Town05_2"; Repetitions = 6 },
+    # @{ Town = "Town05_3"; Repetitions = 6 },
+    # @{ Town = "Town03"; Repetitions = 6 },
+    @{ Town = "Town03_2"; Repetitions = 6 },
+    @{ Town = "Town03_3"; Repetitions = 6 },
+    @{ Town = "Town03_4"; Repetitions = 6 },
+    @{ Town = "Town03_5"; Repetitions = 6 }
 )
 
 $totalTaskCount = 0
@@ -32,7 +37,7 @@ foreach ($task in $taskList) {
         Start-Sleep -Seconds 5
 
         # 2. 运行Python脚本（不带repetitions，只传town和随机种子）
-        $randomSeed = $i + 1  # 可以自定义种子生成逻辑
+        $randomSeed = $i + 10  # 可以自定义种子生成逻辑
         python $pythonScript --town $town --random_seed $randomSeed
 
         # 3. 关闭exe（名字中包含CarlaUE4的全部杀掉）
