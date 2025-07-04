@@ -4,12 +4,13 @@ import os
 from collections import defaultdict
 
 def analyze_voxel_point_counts(root_dir):
-    voxel_size = [0.4, 0.4, 10.0]
-    pc_range = [-100, -100, -10, 100, 100, 10]
+    voxel_size = [0.4, 0.4, 3]
+    pc_range = [-102.4, -102.4, 0.5, 102.4, 102.4, 3.5]
     x_min, y_min, z_min, x_max, y_max, z_max = pc_range
     voxel_x, voxel_y, voxel_z = voxel_size
 
     all_voxel_point_counts = []
+    file_pillar_counts = []  # 记录每个文件的非空pillar数
 
     # 递归遍历所有 .pcd 文件
     pcd_file_list = []
@@ -50,6 +51,10 @@ def analyze_voxel_point_counts(root_dir):
                 voxel_key = tuple(idx)
                 voxel_counts[voxel_key] += 1
 
+            # 记录当前文件的非空pillar数
+            current_file_pillar_count = len(voxel_counts)
+            file_pillar_counts.append(current_file_pillar_count)
+            
             # 统计所有非空 voxel 的点数
             all_voxel_point_counts.extend(voxel_counts.values())
 
@@ -63,15 +68,22 @@ def analyze_voxel_point_counts(root_dir):
         return
 
     counts_array = np.array(all_voxel_point_counts)
+    file_pillar_counts_array = np.array(file_pillar_counts)
 
-    print("\n========== 每个非空 pillar 内的点数统计 ==========")
+    print("\n========== Pillar统计结果 ==========")
+    print(f"处理的pcd文件数：{len(file_pillar_counts)}")
     print(f"总非空 pillar 数：{len(counts_array)}")
-    print(f"最小点数/voxel：{counts_array.min()}")
-    print(f"最大点数/voxel：{counts_array.max()}")
-    print(f"平均点数/voxel：{counts_array.mean():.2f}")
-    print(f"中位数点数/voxel：{np.median(counts_array):.2f}")
+    print(f"平均每个pcd文件的非空pillar数：{file_pillar_counts_array.mean():.2f}")
+    print(f"每个pcd文件非空pillar数范围：{file_pillar_counts_array.min()} - {file_pillar_counts_array.max()}")
+    
+    print("\n========== Points per Pillar统计 ==========")
+    print(f"最少points_per_pillar：{counts_array.min()}")
+    print(f"最多points_per_pillar：{counts_array.max()}")
+    print(f"平均points_per_pillar：{counts_array.mean():.2f}")
+    print(f"中位数points_per_pillar：{np.median(counts_array):.2f}")
+    print(f"标准差points_per_pillar：{counts_array.std():.2f}")
 
 # 示例调用
 if __name__ == "__main__":
-    dataset_root = r"D:\datasets\mydataset\test"  # 替换为你的根目录
+    dataset_root = r"E:\datasets\OPV2V\train"  # 替换为你的根目录
     analyze_voxel_point_counts(dataset_root)

@@ -8,8 +8,8 @@ $taskList = @(
     # @{ Town = "Town05_2"; Repetitions = 6 },
     # @{ Town = "Town05_3"; Repetitions = 6 },
     # @{ Town = "Town03"; Repetitions = 6 },
-    @{ Town = "Town03_2"; Repetitions = 6 },
-    @{ Town = "Town03_3"; Repetitions = 6 },
+    # @{ Town = "Town03_2"; Repetitions = 6 },
+    # @{ Town = "Town03_3"; Repetitions = 6 },
     @{ Town = "Town03_4"; Repetitions = 6 },
     @{ Town = "Town03_5"; Repetitions = 6 }
 )

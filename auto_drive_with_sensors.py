@@ -282,7 +282,19 @@ if __name__ == '__main__':
                 carla.Location(x=150, y=130, z=15),
                 carla.Location(x=235, y=-60, z=15),
                 carla.Location(x=115, y=60, z=15)
-            ]
+            ],
+            "Town03_z05_1": [
+                carla.Location(x=-6, y=22, z=5),
+                carla.Location(x=23, y=-4, z=5),
+                carla.Location(x=0, y=-22, z=5),
+                carla.Location(x=-36, y=-1, z=5)
+            ],
+            "Town03_z05_2": [
+                carla.Location(x=-80, y=-30, z=5),
+                carla.Location(x=23, y=-4, z=5),
+                carla.Location(x=0, y=-22, z=5),
+                carla.Location(x=-36, y=-1, z=5)
+            ],
         }
 
         save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")

@@ -73,5 +73,5 @@ def traverse_and_compute(root_dir):
     compute_statistics(all_tops, "车辆顶部最高点统计")
 
 if __name__ == '__main__':
-    root_directory = r'E:\datasets\mydataset\train'
+    root_directory = r'E:\datasets\mydataset_OPV2V_lowerZ\train'
     traverse_and_compute(root_directory)
