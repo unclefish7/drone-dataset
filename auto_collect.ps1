@@ -4,14 +4,16 @@ $pythonScript = "C:\Users\uncle\_git_clones\CARLA_Latest\WindowsNoEditor\myDemo\
 
 # 每组任务配置：Town名 和 要跑几次
 $taskList = @(
-    # @{ Town = "Town05"; Repetitions = 6 },
-    # @{ Town = "Town05_2"; Repetitions = 6 },
-    # @{ Town = "Town05_3"; Repetitions = 6 },
-    # @{ Town = "Town03"; Repetitions = 6 },
-    # @{ Town = "Town03_2"; Repetitions = 6 },
-    # @{ Town = "Town03_3"; Repetitions = 6 },
-    @{ Town = "Town03_4"; Repetitions = 6 },
-    @{ Town = "Town03_5"; Repetitions = 6 }
+    @{ Town = "Town05_h50_1"; Repetitions = 2 },
+    @{ Town = "Town05_h50_2"; Repetitions = 2 },
+    @{ Town = "Town05_h50_3"; Repetitions = 2 },
+    @{ Town = "Town03_h50_1"; Repetitions = 2 },
+    @{ Town = "Town03_h50_2"; Repetitions = 2 },
+    @{ Town = "Town03_h50_3"; Repetitions = 2 },
+    @{ Town = "Town03_h50_4"; Repetitions = 2 },
+    @{ Town = "Town03_h50_5"; Repetitions = 2 },
+    @{ Town = "Town03_h50_6"; Repetitions = 2 },
+    @{ Town = "Town03_h50_7"; Repetitions = 2 }
 )
 
 $totalTaskCount = 0

@@ -231,70 +231,141 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = r'E:\datasets\mydataset_OPV2V_new\train'
+        base_dir = r'E:\datasets\mydataset_OPV2V_seg_cam_lidar\train'
         # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
 
         test_points = {
-            'Town05': [
+            ###################################################
+            # Town05, 15m
+            'Town05_h15_1': [
                 carla.Location(x=-122, y=-44, z=15),
                 carla.Location(x=-157, y=-88, z=15),
                 carla.Location(x=-189, y=-43, z=15),
                 carla.Location(x=-155, y=1, z=15)
             ],
-            'Town05_2': [
+            'Town05_h15_2': [
                 carla.Location(x=-50, y=0, z=15),
                 carla.Location(x=-100, y=0, z=15),
                 carla.Location(x=-20, y=0, z=15),
                 carla.Location(x=-50, y=45, z=15)
             ],
-            'Town05_3': [
+            'Town05_h15_3': [
                 carla.Location(x=-125, y=150, z=15),
                 carla.Location(x=-125, y=90, z=15),
                 carla.Location(x=-45, y=105, z=15),
                 carla.Location(x=-190, y=125, z=15)
             ],
-            'Town03': [
+            ###################################################
+            # Town03, 15m
+            'Town03_h15_1': [
                 carla.Location(x=43, y=-134, z=15),
                 carla.Location(x=0, y=-85, z=15),
                 carla.Location(x=-45, y=0, z=15),
                 carla.Location(x=80, y=-85, z=15)
             ],
-            'Town03_2': [
+            'Town03_h15_2': [
                 carla.Location(x=0, y=0, z=15),
                 carla.Location(x=0, y=-50, z=15),
                 carla.Location(x=0, y=50, z=15),
                 carla.Location(x=50, y=0, z=15)
             ],
-            'Town03_3': [
+            'Town03_h15_3': [
                 carla.Location(x=0, y=133, z=15),
                 carla.Location(x=0, y=183, z=15),
                 carla.Location(x=0, y=83, z=15),
                 carla.Location(x=50, y=133, z=15)
             ],
-            'Town03_4': [
+            'Town03_h15_4': [
                 carla.Location(x=-85, y=0, z=15),
                 carla.Location(x=-40, y=0, z=15),
                 carla.Location(x=-85, y=-50, z=15),
                 carla.Location(x=-126, y=14, z=15)
             ],
-            'Town03_5': [
+            'Town03_h15_5': [
                 carla.Location(x=171, y=60, z=15),
                 carla.Location(x=150, y=130, z=15),
                 carla.Location(x=235, y=-60, z=15),
                 carla.Location(x=115, y=60, z=15)
             ],
-            "Town03_z05_1": [
+            ###################################################
+            # Town03, 5m
+            "Town03_h05_1": [
                 carla.Location(x=-6, y=22, z=5),
                 carla.Location(x=23, y=-4, z=5),
                 carla.Location(x=0, y=-22, z=5),
                 carla.Location(x=-36, y=-1, z=5)
             ],
-            "Town03_z05_2": [
+            "Town03_h05_2": [
                 carla.Location(x=-80, y=-30, z=5),
                 carla.Location(x=23, y=-4, z=5),
                 carla.Location(x=0, y=-22, z=5),
                 carla.Location(x=-36, y=-1, z=5)
             ],
+            ###################################################
+            # Town05, 50m
+            'Town05_h50_1': [
+                carla.Location(x=-122, y=-44, z=50),
+                carla.Location(x=-157, y=-88, z=50),
+                carla.Location(x=-189, y=-43, z=50),
+                carla.Location(x=-155, y=1, z=50)
+            ],
+            'Town05_h50_2': [
+                carla.Location(x=-50, y=0, z=50),
+                carla.Location(x=-100, y=0, z=50),
+                carla.Location(x=-20, y=0, z=50),
+                carla.Location(x=-50, y=45, z=50)
+            ],
+            'Town05_h50_3': [
+                carla.Location(x=-125, y=150, z=50),
+                carla.Location(x=-125, y=90, z=50),
+                carla.Location(x=-45, y=105, z=50),
+                carla.Location(x=-190, y=125, z=50)
+            ],
+            ###################################################
+            # Town03, 50m
+            'Town03_h50_1': [
+                carla.Location(x=43, y=-134, z=50),
+                carla.Location(x=0, y=-85, z=50),
+                carla.Location(x=-45, y=0, z=50),
+                carla.Location(x=80, y=-85, z=50)
+            ],
+            'Town03_h50_2': [
+                carla.Location(x=0, y=0, z=50),
+                carla.Location(x=0, y=-50, z=50),
+                carla.Location(x=0, y=50, z=50),
+                carla.Location(x=50, y=0, z=50)
+            ],
+            'Town03_h50_3': [
+                carla.Location(x=0, y=133, z=50),
+                carla.Location(x=0, y=183, z=50),
+                carla.Location(x=0, y=83, z=50),
+                carla.Location(x=50, y=133, z=50)
+            ],
+            'Town03_h50_4': [
+                carla.Location(x=-85, y=0, z=50),
+                carla.Location(x=-40, y=0, z=50),
+                carla.Location(x=-85, y=-50, z=50),
+                carla.Location(x=-126, y=14, z=50)
+            ],
+            'Town03_h50_5': [
+                carla.Location(x=171, y=60, z=50),
+                carla.Location(x=150, y=130, z=50),
+                carla.Location(x=235, y=-60, z=50),
+                carla.Location(x=115, y=60, z=50)
+            ],
+            "Town03_h50_6": [
+                carla.Location(x=-6, y=22, z=50),
+                carla.Location(x=23, y=-4, z=50),
+                carla.Location(x=0, y=-22, z=50),
+                carla.Location(x=-36, y=-1, z=50)
+            ],
+            "Town03_h50_7": [
+                carla.Location(x=-80, y=-30, z=50),
+                carla.Location(x=23, y=-4, z=50),
+                carla.Location(x=0, y=-22, z=50),
+                carla.Location(x=-36, y=-1, z=50)
+            ],
+
         }
 
         save_dir = os.path.join(base_dir, f"{time.strftime('%Y_%m_%d_%H_%M_%S')}")

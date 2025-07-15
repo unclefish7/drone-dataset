@@ -178,7 +178,7 @@ if __name__ == "__main__":
     # log = unify_frames("mydataset", dry_run=True)
     
     # 实际执行
-    log = unify_frames(r"E:\datasets\mydataset_OPV2V_lowerZ", dry_run=False)
+    log = unify_frames(r"E:\datasets\mydataset_OPV2V_seg_cam_lidar", dry_run=False)
     
     # 生成CSV格式日志
     csv_log = "DatasetType,Scene,DroneID,OriginalFrame,BaseFrame,OriginalPath,NewPath\n"
