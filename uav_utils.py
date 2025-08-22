@@ -234,7 +234,7 @@ class UAV:
             # 转换为 numpy 数组
             segmentation_array = np.array(segmentation_image)
 
-            # 车辆颜色列表
+            # 车辆颜色列表 (动态对象)
             vehicle_colors = [
                 [0, 0, 142],  # 乘用车
                 [0, 0, 70],  # 卡车
@@ -243,22 +243,89 @@ class UAV:
                 [119, 11, 32],  # 自行车
             ]
 
-            # 创建一个全黑的图像（保持与原图形状一致，4通道 RGBA）
-            black_image = np.zeros_like(segmentation_array)
+            # 车道线颜色
+            lane_marking_colors = [
+                [157, 234, 50],  # 车道线标记
+            ]
 
-            # 遍历所有车辆颜色
+            # 车道颜色 (静态路面) - 只包含道路，不包含人行道
+            road_colors = [
+                [128, 64, 128],  # 道路
+            ]
+
+            # 1. 创建动态对象分割图像 (车辆)
+            dynamic_image = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1], 3), dtype=np.uint8)
             for vehicle_color in vehicle_colors:
-                # 找到与当前车辆颜色匹配的区域
-                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)  # 只检查RGB通道
+                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)
+                dynamic_image[vehicle_mask] = [255, 255, 255]  # 白色
 
-                # 将车辆部分的 RGB 设置为白色，同时保持透明度通道不变
-                black_image[vehicle_mask, :3] = [255, 255, 255]  # 设置为白色
-                black_image[vehicle_mask, 3] = segmentation_array[vehicle_mask, 3]  # 保持透明度不变
+            # 保存动态对象分割图像
+            dynamic_output = Image.fromarray(dynamic_image)
+            dynamic_file_name = os.path.join(self.self_dir, f'{frame}_bev_dynamic.png')
+            dynamic_output.save(dynamic_file_name)
 
-            # 创建新的图像并保存
-            output_image = Image.fromarray(black_image)
-            new_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility.png')
-            output_image.save(new_file_name)
+            # 2. 创建车道线分割图像
+            lane_image = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1], 3), dtype=np.uint8)
+            for lane_color in lane_marking_colors:
+                lane_mask = np.all(segmentation_array[:, :, :3] == lane_color, axis=-1)
+                lane_image[lane_mask] = [255, 255, 255]  # 白色
+
+            # 保存车道线分割图像
+            lane_output = Image.fromarray(lane_image)
+            lane_file_name = os.path.join(self.self_dir, f'{frame}_bev_lane.png')
+            lane_output.save(lane_file_name)
+
+            # 3. 创建静态路面分割图像 (道路 + 道路上的车道线 + 道路上的车辆)
+            static_image = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1], 3), dtype=np.uint8)
+            
+            # 首先提取道路区域
+            road_mask = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1]), dtype=bool)
+            for road_color in road_colors:
+                road_color_mask = np.all(segmentation_array[:, :, :3] == road_color, axis=-1)
+                road_mask |= road_color_mask
+            
+            # 添加车道线区域（车道线通常在道路上）
+            lane_mask = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1]), dtype=bool)
+            for lane_color in lane_marking_colors:
+                lane_color_mask = np.all(segmentation_array[:, :, :3] == lane_color, axis=-1)
+                lane_mask |= lane_color_mask
+            
+            # 添加车辆区域（车辆在道路上行驶）
+            vehicle_mask = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1]), dtype=bool)
+            for vehicle_color in vehicle_colors:
+                vehicle_color_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)
+                vehicle_mask |= vehicle_color_mask
+            
+            # 静态路面 = 道路 + 车道线 + 车辆（并集）
+            static_mask = road_mask | lane_mask | vehicle_mask
+            static_image[static_mask] = [255, 255, 255]  # 白色
+
+            # 保存静态路面分割图像
+            static_output = Image.fromarray(static_image)
+            static_file_name = os.path.join(self.self_dir, f'{frame}_bev_static.png')
+            static_output.save(static_file_name)
+
+            # 4. 创建visibility图像 (所有车辆的综合可见性)
+            visibility_image = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1], 3), dtype=np.uint8)
+            for vehicle_color in vehicle_colors:
+                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)
+                visibility_image[vehicle_mask] = [255, 255, 255]  # 白色
+
+            # 保存可见性图像
+            visibility_output = Image.fromarray(visibility_image)
+            visibility_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility.png')
+            visibility_output.save(visibility_file_name)
+
+            # 5. 创建visibility_corp图像 (与visibility相同的内容)
+            visibility_corp_image = np.zeros((segmentation_array.shape[0], segmentation_array.shape[1], 3), dtype=np.uint8)
+            for vehicle_color in vehicle_colors:
+                vehicle_mask = np.all(segmentation_array[:, :, :3] == vehicle_color, axis=-1)
+                visibility_corp_image[vehicle_mask] = [255, 255, 255]  # 白色
+
+            # 保存visibility_corp图像
+            visibility_corp_output = Image.fromarray(visibility_corp_image)
+            visibility_corp_file_name = os.path.join(self.self_dir, f'{frame}_bev_visibility_corp.png')
+            visibility_corp_output.save(visibility_corp_file_name)
 
 
     def save_image(self, image, direction, frame):
