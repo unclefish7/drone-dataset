@@ -3,7 +3,7 @@ import json
 
 # 获取脚本所在的绝对路径
 # script_dir = os.path.dirname(os.path.abspath(__file__))
-script_dir = r"E:\datasets\mydataset_OPV2V_seg_cam_lidar\train"
+script_dir = r"E:\datasets\mydataset_OPV2V_h50_all_data\train"
 # 获取所有子目录（排除文件）
 folders = [
     f for f in os.listdir(script_dir)

@@ -231,7 +231,7 @@ args = parse_arguments()
 
 if __name__ == '__main__':
     try:
-        base_dir = r'E:\datasets\mydataset_OPV2V_seg_cam_lidar\train'
+        base_dir = r'E:\datasets\mydataset_OPV2V_newBEV\train'
         # base_dir = fr'D:\CARLA_Latest\WindowsNoEditor\myDemo\dataset'
 
         test_points = {
@@ -373,7 +373,7 @@ if __name__ == '__main__':
 
         print(f"Running on {args.town}")
         town_name = args.town.split('_')[0] if '_' in args.town else args.town
-        main(town_name, 20, save_dir, test_points[args.town], args.random_seed)
+        main(town_name, 2, save_dir, test_points[args.town], args.random_seed)
     except KeyboardInterrupt:
         pass
     finally:
