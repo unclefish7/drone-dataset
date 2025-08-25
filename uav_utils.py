@@ -289,12 +289,12 @@ class UAV:
         bev_visibility = self._generate_bev_visibility(uav_location, bev_size, bev_range, resolution)
         bev_visibility_corp = np.copy(bev_visibility)  # 协同可见性图像直接复制
 
-        # 保存图像
-        Image.fromarray(bev_dynamic).save(os.path.join(self.self_dir, f'{frame}_bev_dynamic.png'))
-        Image.fromarray(bev_static).save(os.path.join(self.self_dir, f'{frame}_bev_static.png'))
-        Image.fromarray(bev_lane).save(os.path.join(self.self_dir, f'{frame}_bev_lane.png'))
-        Image.fromarray(bev_visibility).save(os.path.join(self.self_dir, f'{frame}_bev_visibility.png'))
-        Image.fromarray(bev_visibility_corp).save(os.path.join(self.self_dir, f'{frame}_bev_visibility_corp.png'))
+        # 保存图像（所有BEV图像逆时针旋转90度）
+        Image.fromarray(np.rot90(bev_dynamic, k=1)).save(os.path.join(self.self_dir, f'{frame}_bev_dynamic.png'))
+        Image.fromarray(np.rot90(bev_static, k=1)).save(os.path.join(self.self_dir, f'{frame}_bev_static.png'))
+        Image.fromarray(np.rot90(bev_lane, k=1)).save(os.path.join(self.self_dir, f'{frame}_bev_lane.png'))
+        Image.fromarray(np.rot90(bev_visibility, k=1)).save(os.path.join(self.self_dir, f'{frame}_bev_visibility.png'))
+        Image.fromarray(np.rot90(bev_visibility_corp, k=1)).save(os.path.join(self.self_dir, f'{frame}_bev_visibility_corp.png'))
 
     def _world_to_bev_coords(self, world_x, world_y, uav_x, uav_y, bev_size, bev_range, uav_yaw=0):
         """将世界坐标转换为 BEV 像素坐标，考虑无人机朝向"""
